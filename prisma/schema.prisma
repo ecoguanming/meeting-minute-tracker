@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------- NextAuth (Auth.js) tables ----------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  series        Series[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------- App data ----------
+
+model Series {
+  id        String     @id @default(cuid())
+  slug      String     @unique
+  title     String
+  ccList    String     @default("")
+  ownerId   String
+  createdAt DateTime   @default(now())
+
+  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  meetings Meeting[]
+  matters  Matter[]
+}
+
+model Meeting {
+  id                  String   @id @default(cuid())
+  seriesId            String
+  date                String
+  venue               String   @default("")
+  nextDate            String   @default("")
+  professionalMinutes String   @default("")
+  status              String   @default("open") // open | dispatched | closed
+  createdAt           DateTime @default(now())
+
+  series    Series     @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  attendees Attendee[]
+}
+
+model Attendee {
+  id        String  @id @default(cuid())
+  meetingId String
+  name      String  @default("")
+  email     String  @default("")
+  attended  Boolean @default(true)
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
+
+model Matter {
+  id             String   @id @default(cuid())
+  seriesId       String
+  no             String
+  matter         String   @default("")
+  actionParty    String   @default("")
+  actionPartyEmail String @default("")
+  deadline       String   @default("")
+  status         String   @default("grey") // grey | yellow | green | red
+  greenStreak    Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  series Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+}

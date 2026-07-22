@@ -1,11 +1,26 @@
 # Meeting Minute Tracker
 
-A simple web app to record meetings and their minutes. Data is saved in your browser's local storage.
+A staged meeting-minutes tool (Setup → Attendance → Matters → Dispatch) built with Next.js,
+Prisma, and Google Calendar/Gmail.
+
+## Status
+
+This is being built incrementally. Current stage: basic 4-stage UI shell (no database wiring,
+no Google sign-in yet — those come next).
 
 ## Run locally
 
-Open `index.html` in your browser, or serve the folder with any static file server.
+```bash
+npm install
+npx prisma migrate dev
+npm run dev
+```
 
-## Deploy
+Then open http://localhost:3000.
 
-This is a static site (plain HTML/CSS/JS), so it can be deployed on [Vercel](https://vercel.com) with zero configuration by importing this GitHub repository.
+## Stack
+
+- Next.js (App Router)
+- Prisma + SQLite locally / Postgres in production
+- NextAuth.js (Google provider) for sign-in + Calendar/Gmail access
+- Deployed on Vercel
