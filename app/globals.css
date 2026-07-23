@@ -54,3 +54,8 @@ select {
 .mma-mono {
   font-family: "IBM Plex Mono", monospace;
 }
+
+.mma-struck td {
+  text-decoration: line-through;
+  opacity: 0.55;
+}

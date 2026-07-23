@@ -7,7 +7,7 @@ export async function PATCH(request, { params }) {
 
   const { id } = await params;
   const body = await request.json();
-  const { venue, nextDate } = body;
+  const { venue, nextDate, professionalMinutes } = body;
 
   const meeting = await prisma.meeting.findUnique({ where: { id } });
   if (!meeting) return Response.json({ error: "not found" }, { status: 404 });
@@ -17,6 +17,7 @@ export async function PATCH(request, { params }) {
     data: {
       ...(venue !== undefined ? { venue } : {}),
       ...(nextDate !== undefined ? { nextDate } : {}),
+      ...(professionalMinutes !== undefined ? { professionalMinutes } : {}),
     },
   });
 
