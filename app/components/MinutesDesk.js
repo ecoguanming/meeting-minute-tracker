@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import SetupStage from "./SetupStage";
+import AttendanceStage from "./AttendanceStage";
 
 const STAGES = [
   { title: "Setup", blurb: "Pick or create the meeting on your Google Calendar." },
@@ -187,7 +188,18 @@ export default function MinutesDesk() {
             </div>
           )}
 
-          {current > 0 && (
+          {current === 1 && meeting && (
+            <AttendanceStage
+              meetingId={meeting.meetingId}
+              initialAttendees={meeting.attendees}
+              onContinue={(attendees) => {
+                setMeeting((prev) => ({ ...prev, attendees }));
+                setCurrent(2);
+              }}
+            />
+          )}
+
+          {current > 1 && (
             <div
               style={{
                 background: "#fff",
