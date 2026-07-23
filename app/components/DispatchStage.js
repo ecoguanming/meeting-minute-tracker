@@ -9,15 +9,39 @@ const STATUS_META = {
   red: { label: "delayed", color: "var(--red)" },
 };
 
-export default function DispatchStage({ seriesId, meetingId, attendees, matters, onClosed }) {
+export default function DispatchStage({ seriesId, meetingId, seriesTitle, attendees, matters, onClosed }) {
   const [dispatching, setDispatching] = useState(false);
   const [dispatchError, setDispatchError] = useState("");
   const [result, setResult] = useState(null);
   const [closing, setClosing] = useState(false);
   const [closed, setClosed] = useState(false);
 
+  const [sendingNotion, setSendingNotion] = useState(false);
+  const [notionResult, setNotionResult] = useState(null);
+  const [notionError, setNotionError] = useState("");
+
   const emails = (attendees || []).filter((a) => a.email).map((a) => a.email);
   const remindable = (matters || []).filter((m) => m.deadline && m.actionPartyEmail && m.status !== "green");
+  const notionSendable = (matters || []).filter((m) => m.matter);
+
+  async function handleSendNotion() {
+    setSendingNotion(true);
+    setNotionError("");
+    try {
+      const res = await fetch("/api/notion/dispatch-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matters: notionSendable, meetingTitle: seriesTitle }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "failed to send to Notion");
+      setNotionResult(data);
+    } catch (err) {
+      setNotionError(err.message);
+    } finally {
+      setSendingNotion(false);
+    }
+  }
 
   async function handleDispatch() {
     setDispatching(true);
@@ -104,6 +128,48 @@ export default function DispatchStage({ seriesId, meetingId, attendees, matters,
             {STATUS_META[k].label}
           </span>
         ))}
+      </div>
+
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid var(--rule)",
+          borderRadius: 10,
+          padding: 16,
+          marginBottom: 20,
+        }}
+      >
+        <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 10 }}>
+          send action items to Notion
+        </div>
+        <button
+          disabled={!notionSendable.length || sendingNotion}
+          onClick={handleSendNotion}
+          style={{
+            background: "var(--brass)",
+            color: "#fff",
+            border: "none",
+            padding: "9px 16px",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 500,
+            opacity: notionSendable.length && !sendingNotion ? 1 : 0.5,
+            cursor: notionSendable.length && !sendingNotion ? "pointer" : "not-allowed",
+          }}
+        >
+          {sendingNotion ? "sending…" : `Send ${notionSendable.length} action item(s) to Notion`}
+        </button>
+
+        {notionError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 10 }}>{notionError}</div>}
+
+        {notionResult && (
+          <div style={{ fontSize: 13, marginTop: 10, color: "var(--pine)" }}>
+            Created {notionResult.created} of {notionResult.total} task(s) in Notion.
+            {notionResult.notes && (
+              <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>{notionResult.notes}</div>
+            )}
+          </div>
+        )}
       </div>
 
       <button

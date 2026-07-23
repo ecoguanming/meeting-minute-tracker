@@ -221,6 +221,7 @@ export default function MinutesDesk() {
             <DispatchStage
               seriesId={meeting.seriesId}
               meetingId={meeting.meetingId}
+              seriesTitle={meeting.seriesTitle}
               attendees={meeting.attendees}
               matters={meeting.matters}
               onClosed={() => {
