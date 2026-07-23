@@ -14,11 +14,20 @@ function nextNo(matters) {
   return (max + 1).toFixed(1);
 }
 
-function extractTextFromHtml(html) {
-  const withBreaks = html.replace(/<(br|\/p|\/div|\/li|\/h[1-6]|\/tr)\s*\/?>/gi, "\n");
-  const doc = new DOMParser().parseFromString(withBreaks, "text/html");
-  const text = doc.body ? doc.body.textContent || "" : "";
-  return text.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+async function extractTextFromPdf(file) {
+  const pdfjsLib = await import("pdfjs-dist");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+
+  const pageTexts = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    pageTexts.push(content.items.map((item) => item.str).join(" "));
+  }
+  return pageTexts.join("\n\n");
 }
 
 export default function MattersStage({ seriesId, meetingId, initialMinutes, initialMatters, attendees, onContinue }) {
@@ -27,7 +36,7 @@ export default function MattersStage({ seriesId, meetingId, initialMinutes, init
     (initialMatters || []).map((m) => ({ ...m, no: m.no || "" }))
   );
   const [saving, setSaving] = useState(false);
-  const [transcriptLabel, setTranscriptLabel] = useState("click to choose a .txt, .docx, or .html transcript");
+  const [transcriptLabel, setTranscriptLabel] = useState("click to choose a .txt, .docx, or .pdf transcript");
   const [transcriptText, setTranscriptText] = useState("");
 
   function updateMatter(i, field, value) {
@@ -57,9 +66,8 @@ export default function MattersStage({ seriesId, meetingId, initialMinutes, init
         const buf = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer: buf });
         text = result.value;
-      } else if (lowerName.endsWith(".html") || lowerName.endsWith(".htm")) {
-        const raw = await file.text();
-        text = extractTextFromHtml(raw);
+      } else if (lowerName.endsWith(".pdf")) {
+        text = await extractTextFromPdf(file);
       } else {
         text = await file.text();
       }
@@ -123,7 +131,7 @@ export default function MattersStage({ seriesId, meetingId, initialMinutes, init
             marginBottom: 10,
           }}
         >
-          <input id="mma-transcript-file" type="file" accept=".txt,.docx,.html,.htm" onChange={handleFileChange} style={{ display: "none" }} />
+          <input id="mma-transcript-file" type="file" accept=".txt,.docx,.pdf" onChange={handleFileChange} style={{ display: "none" }} />
           <div className="mma-mono" style={{ fontSize: 12, color: "var(--ink-soft)" }}>{transcriptLabel}</div>
         </label>
         <button
