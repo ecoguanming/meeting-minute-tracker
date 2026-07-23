@@ -24,6 +24,10 @@ function buildMinutesText(meeting, matters) {
     );
   });
   lines.push("");
+  if (process.env.NOTION_PUBLIC_URL) {
+    lines.push(`Track and update these action items: ${process.env.NOTION_PUBLIC_URL}`);
+    lines.push("");
+  }
   if (meeting.nextDate) lines.push(`NEXT MEETING: ${meeting.nextDate}${meeting.venue ? " at " + meeting.venue : ""}`);
   return lines.join("\n");
 }
