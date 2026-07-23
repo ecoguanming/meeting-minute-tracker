@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const STATUS_META = {
   grey: { label: "not started", color: "var(--grey)" },
@@ -16,8 +16,74 @@ export default function DispatchStage({ seriesId, meetingId, attendees, matters,
   const [closing, setClosing] = useState(false);
   const [closed, setClosed] = useState(false);
 
+  const [msConnected, setMsConnected] = useState(false);
+  const [msEmail, setMsEmail] = useState(null);
+  const [plans, setPlans] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [plansError, setPlansError] = useState("");
+  const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [sendingTasks, setSendingTasks] = useState(false);
+  const [taskResult, setTaskResult] = useState(null);
+  const [taskError, setTaskError] = useState("");
+
   const emails = (attendees || []).filter((a) => a.email).map((a) => a.email);
   const remindable = (matters || []).filter((m) => m.deadline && m.actionPartyEmail && m.status !== "green");
+  const assignable = (matters || []).filter((m) => m.matter && m.actionPartyEmail && m.status !== "green");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/microsoft/status");
+        const data = await res.json();
+        if (cancelled) return;
+        setMsConnected(!!data.connected);
+        setMsEmail(data.email || null);
+        if (data.connected) loadPlans();
+      } catch {
+        // ignore — treat as not connected
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function loadPlans() {
+    setPlansLoading(true);
+    setPlansError("");
+    try {
+      const res = await fetch("/api/microsoft/plans");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "failed to load Teams plans");
+      setPlans(data.plans || []);
+      if (data.plans?.length) setSelectedPlanId(data.plans[0].id);
+    } catch (err) {
+      setPlansError(err.message);
+    } finally {
+      setPlansLoading(false);
+    }
+  }
+
+  async function handleSendTasks() {
+    setSendingTasks(true);
+    setTaskError("");
+    try {
+      const res = await fetch("/api/microsoft/dispatch-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId: selectedPlanId, matters: assignable }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "failed to send tasks");
+      setTaskResult(data);
+    } catch (err) {
+      setTaskError(err.message);
+    } finally {
+      setSendingTasks(false);
+    }
+  }
 
   async function handleDispatch() {
     setDispatching(true);
@@ -104,6 +170,107 @@ export default function DispatchStage({ seriesId, meetingId, attendees, matters,
             {STATUS_META[k].label}
           </span>
         ))}
+      </div>
+
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid var(--rule)",
+          borderRadius: 10,
+          padding: 16,
+          marginBottom: 20,
+        }}
+      >
+        <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 10 }}>
+          send action items to Microsoft Teams
+        </div>
+
+        {!msConnected && (
+          <a
+            href="/api/microsoft/connect"
+            style={{
+              display: "inline-block",
+              background: "var(--brass)",
+              color: "#fff",
+              border: "none",
+              padding: "9px 16px",
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 500,
+              textDecoration: "none",
+            }}
+          >
+            Connect Microsoft account
+          </a>
+        )}
+
+        {msConnected && (
+          <div>
+            <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 10 }}>
+              connected as {msEmail}
+            </div>
+
+            {plansLoading && <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>loading your Teams plans…</div>}
+            {plansError && <div style={{ fontSize: 12, color: "var(--danger)" }}>{plansError}</div>}
+
+            {!plansLoading && !plansError && plans.length === 0 && (
+              <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>
+                No Planner plans found — you need to be a member of at least one Team with a Planner board.
+              </div>
+            )}
+
+            {plans.length > 0 && (
+              <>
+                <select
+                  value={selectedPlanId}
+                  onChange={(e) => setSelectedPlanId(e.target.value)}
+                  style={{
+                    padding: "8px 10px",
+                    border: "1px solid var(--rule)",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    marginBottom: 10,
+                    marginRight: 10,
+                  }}
+                >
+                  {plans.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  disabled={!assignable.length || sendingTasks}
+                  onClick={handleSendTasks}
+                  style={{
+                    background: "var(--brass)",
+                    color: "#fff",
+                    border: "none",
+                    padding: "9px 16px",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    opacity: assignable.length && !sendingTasks ? 1 : 0.5,
+                    cursor: assignable.length && !sendingTasks ? "pointer" : "not-allowed",
+                  }}
+                >
+                  {sendingTasks ? "sending…" : `Send ${assignable.length} action item(s) to Teams`}
+                </button>
+              </>
+            )}
+
+            {taskError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 10 }}>{taskError}</div>}
+
+            {taskResult && (
+              <div style={{ fontSize: 13, marginTop: 10, color: "var(--pine)" }}>
+                Created {taskResult.created} of {taskResult.total} task(s) in Teams.
+                {taskResult.notes && (
+                  <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>{taskResult.notes}</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <button
