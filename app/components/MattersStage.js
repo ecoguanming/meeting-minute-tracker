@@ -14,58 +14,6 @@ function nextNo(matters) {
   return (max + 1).toFixed(1);
 }
 
-function buildClaudePrompt({ title, date, attendees, transcriptText }) {
-  const names = (attendees || []).map((a) => a.name || a.email).filter(Boolean).join(", ");
-  return `You are drafting professional meeting minutes from a transcript.
-
-Meeting: "${title || "Untitled meeting"}" on ${date || "unspecified date"}
-Attendees: ${names || "unspecified"}
-
-Please return your answer in EXACTLY this format, with no extra commentary before or after it:
-
-===MINUTES===
-(A well-written, professional meeting-minutes narrative with sections like MEETING OVERVIEW, KEY DISCUSSION POINTS, and DECISIONS. Do not list action items here — they go in the next section.)
-
-===ACTION ITEMS===
-1. [short description of the task] | Action party: [name, matching one of the attendees above if it's clear who] | Deadline: [YYYY-MM-DD if a date was mentioned, otherwise leave blank]
-2. (one line per action item, same format)
-
-Transcript:
-"""
-${transcriptText}
-"""`;
-}
-
-function parseClaudeResponse(text) {
-  const minutesMatch = text.match(/===MINUTES===([\s\S]*?)===ACTION ITEMS===/i);
-  const actionsMatch = text.match(/===ACTION ITEMS===([\s\S]*)$/i);
-  const minutesText = minutesMatch ? minutesMatch[1].trim() : "";
-  const actionsBlock = actionsMatch ? actionsMatch[1].trim() : "";
-
-  const parsedMatters = actionsBlock
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const withoutNumber = line.replace(/^\d+[.)]\s*/, "");
-      const parts = withoutNumber.split("|").map((p) => p.trim());
-      const matter = parts[0] || "";
-      let actionParty = "";
-      let deadline = "";
-      parts.slice(1).forEach((p) => {
-        const apMatch = p.match(/action party:\s*(.*)/i);
-        const dlMatch = p.match(/deadline:\s*(.*)/i);
-        if (apMatch) actionParty = apMatch[1].trim();
-        if (dlMatch) deadline = dlMatch[1].trim();
-      });
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline)) deadline = "";
-      return { matter, actionParty, deadline };
-    })
-    .filter((m) => m.matter);
-
-  return { minutesText, parsedMatters };
-}
-
 async function extractTextFromPdf(file) {
   const pdfjsLib = await import("pdfjs-dist");
   pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
@@ -90,9 +38,8 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
   const [saving, setSaving] = useState(false);
   const [transcriptLabel, setTranscriptLabel] = useState("click to choose a .txt, .docx, or .pdf transcript");
   const [transcriptText, setTranscriptText] = useState("");
-  const [showPasteBox, setShowPasteBox] = useState(false);
-  const [pastedResponse, setPastedResponse] = useState("");
-  const [parseStatus, setParseStatus] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [generateStatus, setGenerateStatus] = useState("");
 
   function updateMatter(i, field, value) {
     setMatters((prev) => prev.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)));
@@ -138,53 +85,59 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
     setMinutes((prev) => (prev ? prev + "\n\n" + transcriptText : transcriptText));
   }
 
-  async function copyPromptForClaude() {
-    const prompt = buildClaudePrompt({ title, date, attendees, transcriptText });
+  async function generateMinutes() {
+    setGenerating(true);
+    setGenerateStatus("drafting minutes…");
     try {
-      await navigator.clipboard.writeText(prompt);
-      setParseStatus("prompt copied — paste it into the new Claude tab");
-    } catch (err) {
-      setParseStatus("couldn't copy automatically — select and copy the prompt manually if needed");
-    }
-    window.open("https://claude.ai/new", "_blank");
-    setShowPasteBox(true);
-  }
-
-  function parsePastedResponse() {
-    const { minutesText, parsedMatters } = parseClaudeResponse(pastedResponse);
-
-    if (minutesText) {
-      setMinutes((prev) => (prev ? prev + "\n\n" + minutesText : minutesText));
-    }
-
-    if (parsedMatters.length) {
-      setMatters((prev) => {
-        let running = [...prev];
-        parsedMatters.forEach((pm) => {
-          let actionParty = pm.actionParty;
-          let actionPartyEmail = "";
-          const match = (attendees || []).find(
-            (a) => (a.name || "").toLowerCase() === actionParty.toLowerCase()
-          );
-          if (match) {
-            actionParty = match.name || match.email;
-            actionPartyEmail = match.email;
-          }
-          running = [
-            ...running,
-            { no: nextNo(running), matter: pm.matter, actionParty, actionPartyEmail, deadline: pm.deadline, status: "grey", greenStreak: 0 },
-          ];
-        });
-        return running;
+      const res = await fetch("/api/generate-minutes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, date, attendees, transcriptText }),
       });
-    }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "failed to generate");
 
-    setParseStatus(
-      minutesText || parsedMatters.length
-        ? `done — added minutes and ${parsedMatters.length} action item(s).`
-        : "couldn't find the expected ===MINUTES===/===ACTION ITEMS=== sections in that text."
-    );
-    setPastedResponse("");
+      if (data.professional_minutes) {
+        setMinutes((prev) => (prev ? prev + "\n\n" + data.professional_minutes : data.professional_minutes));
+      }
+
+      const parsedMatters = data.matters || [];
+      if (parsedMatters.length) {
+        setMatters((prev) => {
+          let running = [...prev];
+          parsedMatters.forEach((pm) => {
+            let actionParty = pm.action_party || "";
+            let actionPartyEmail = "";
+            const match = (attendees || []).find(
+              (a) => (a.name || "").toLowerCase() === actionParty.toLowerCase()
+            );
+            if (match) {
+              actionParty = match.name || match.email;
+              actionPartyEmail = match.email;
+            }
+            running = [
+              ...running,
+              {
+                no: nextNo(running),
+                matter: pm.matter || "",
+                actionParty,
+                actionPartyEmail,
+                deadline: /^\d{4}-\d{2}-\d{2}$/.test(pm.deadline) ? pm.deadline : "",
+                status: "grey",
+                greenStreak: 0,
+              },
+            ];
+          });
+          return running;
+        });
+      }
+
+      setGenerateStatus(`done — added minutes and ${parsedMatters.length} action item(s).`);
+    } catch (err) {
+      setGenerateStatus(`Couldn't generate from that transcript (${err.message}).`);
+    } finally {
+      setGenerating(false);
+    }
   }
 
   async function handleContinue() {
@@ -255,8 +208,8 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
           Insert transcript into minutes
         </button>
         <button
-          disabled={!transcriptText}
-          onClick={copyPromptForClaude}
+          disabled={!transcriptText || generating}
+          onClick={generateMinutes}
           style={{
             background: "var(--brass)",
             color: "#fff",
@@ -265,54 +218,15 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
             borderRadius: 8,
             fontSize: 13,
             fontWeight: 500,
-            opacity: transcriptText ? 1 : 0.5,
-            cursor: transcriptText ? "pointer" : "not-allowed",
+            opacity: transcriptText && !generating ? 1 : 0.5,
+            cursor: transcriptText && !generating ? "pointer" : "not-allowed",
           }}
         >
-          Copy prompt for Claude &amp; open chat
+          {generating ? "generating…" : "Generate minutes & action items"}
         </button>
-        {parseStatus && (
+        {generateStatus && (
           <div className="mma-mono" style={{ fontSize: 12, color: "var(--pine)", marginTop: 10 }}>
-            {parseStatus}
-          </div>
-        )}
-
-        {showPasteBox && (
-          <div style={{ marginTop: 14, borderTop: "1px solid var(--rule)", paddingTop: 14 }}>
-            <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 8 }}>
-              paste Claude&apos;s reply here
-            </div>
-            <textarea
-              rows={6}
-              value={pastedResponse}
-              onChange={(e) => setPastedResponse(e.target.value)}
-              placeholder="Paste the full response from Claude (including the ===MINUTES=== and ===ACTION ITEMS=== markers)…"
-              style={{
-                width: "100%",
-                padding: 10,
-                border: "1px solid var(--rule)",
-                borderRadius: 8,
-                fontSize: 13,
-                marginBottom: 10,
-                resize: "vertical",
-                fontFamily: "Inter, sans-serif",
-              }}
-            />
-            <button
-              disabled={!pastedResponse.trim()}
-              onClick={parsePastedResponse}
-              style={{
-                background: "var(--ink)",
-                color: "var(--paper)",
-                border: "none",
-                padding: "9px 16px",
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 500,
-              }}
-            >
-              Parse into minutes &amp; action items
-            </button>
+            {generateStatus}
           </div>
         )}
       </div>
