@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { getValidAccessToken } from "@/lib/googleAuth";
+import { nameFromEmail } from "@/lib/humanizeEmail";
 
 function mapEvent(item) {
   return {
@@ -9,7 +10,7 @@ function mapEvent(item) {
     location: item.location || "",
     attendees: (item.attendees || [])
       .filter((a) => !a.resource)
-      .map((a) => ({ name: a.displayName || a.email, email: a.email })),
+      .map((a) => ({ name: a.displayName || nameFromEmail(a.email), email: a.email })),
   };
 }
 
