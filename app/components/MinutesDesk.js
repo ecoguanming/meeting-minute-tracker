@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import SetupStage from "./SetupStage";
 
 const STAGES = [
   { title: "Setup", blurb: "Pick or create the meeting on your Google Calendar." },
@@ -11,6 +12,31 @@ const STAGES = [
 
 export default function MinutesDesk() {
   const [current, setCurrent] = useState(0);
+  const [meeting, setMeeting] = useState(null); // { seriesId, seriesTitle, meetingId, title, date, venue, ccList, attendees, matters }
+  const [nextDate, setNextDate] = useState("");
+  const [ccList, setCcList] = useState("");
+  const [venue, setVenue] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  function handleResolved(payload) {
+    setMeeting(payload);
+    setVenue(payload.venue || "");
+    setCcList(payload.ccList || "");
+  }
+
+  async function handleContinue() {
+    setSaving(true);
+    try {
+      await fetch(`/api/meetings/${meeting.meetingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venue, nextDate, ccList }),
+      });
+      setCurrent(1);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div
@@ -47,17 +73,18 @@ export default function MinutesDesk() {
               className="mma-mono"
               style={{ fontSize: 11, color: "var(--ink-soft)", marginTop: 4 }}
             >
-              milestone 1 — shell only
+              {meeting ? meeting.seriesTitle : "no series loaded"}
             </div>
           </div>
           <div>
             {STAGES.map((s, i) => {
               const isActive = i === current;
               const isDone = i < current;
+              const clickable = meeting && i <= current;
               return (
                 <button
                   key={s.title}
-                  onClick={() => setCurrent(i)}
+                  onClick={() => clickable && setCurrent(i)}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -67,7 +94,7 @@ export default function MinutesDesk() {
                     background: "none",
                     border: "none",
                     padding: "10px 20px",
-                    cursor: "pointer",
+                    cursor: clickable ? "pointer" : "default",
                   }}
                 >
                   <span
@@ -110,18 +137,82 @@ export default function MinutesDesk() {
           <div style={{ fontSize: 13, color: "var(--ink-soft)", marginBottom: 20 }}>
             {STAGES[current].blurb}
           </div>
-          <div
-            style={{
-              background: "#fff",
-              border: "1px dashed var(--rule)",
-              borderRadius: 10,
-              padding: 20,
-              fontSize: 13,
-              color: "var(--ink-soft)",
-            }}
-          >
-            This stage isn&apos;t wired up yet — it&apos;s coming in a later step of the build.
-          </div>
+
+          {current === 0 && !meeting && <SetupStage onResolved={handleResolved} />}
+
+          {current === 0 && meeting && (
+            <div>
+              <div
+                style={{
+                  background: "#fff",
+                  border: "1px solid var(--rule)",
+                  borderRadius: 10,
+                  padding: 16,
+                  marginBottom: 16,
+                }}
+              >
+                <div className="mma-h" style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+                  {meeting.title}
+                </div>
+                <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 12 }}>
+                  {meeting.date} · series &quot;{meeting.seriesTitle}&quot; · {meeting.matters.length} matter(s) carried forward · {meeting.attendees.length} attendee(s) from the invite
+                </div>
+
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--ink-soft)", marginBottom: 6 }}>
+                  Venue
+                </label>
+                <input
+                  type="text"
+                  value={venue}
+                  onChange={(e) => setVenue(e.target.value)}
+                  style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--rule)", borderRadius: 8, fontSize: 14, marginBottom: 16 }}
+                />
+
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--ink-soft)", marginBottom: 6 }}>
+                  Next meeting date (for the calendar invite in minutes)
+                </label>
+                <input
+                  type="date"
+                  value={nextDate}
+                  onChange={(e) => setNextDate(e.target.value)}
+                  style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--rule)", borderRadius: 8, fontSize: 14, marginBottom: 16 }}
+                />
+
+                <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--ink-soft)", marginBottom: 6 }}>
+                  Always CC (comma separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="gm@company.com, cdo@company.com"
+                  value={ccList}
+                  onChange={(e) => setCcList(e.target.value)}
+                  style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--rule)", borderRadius: 8, fontSize: 14 }}
+                />
+              </div>
+              <button
+                disabled={saving}
+                onClick={handleContinue}
+                style={{ background: "var(--ink)", color: "var(--paper)", border: "none", padding: "11px 20px", borderRadius: 8, fontSize: 13, fontWeight: 500 }}
+              >
+                {saving ? "saving…" : "Continue to attendance →"}
+              </button>
+            </div>
+          )}
+
+          {current > 0 && (
+            <div
+              style={{
+                background: "#fff",
+                border: "1px dashed var(--rule)",
+                borderRadius: 10,
+                padding: 20,
+                fontSize: 13,
+                color: "var(--ink-soft)",
+              }}
+            >
+              This stage isn&apos;t wired up yet — it&apos;s coming in a later step of the build.
+            </div>
+          )}
         </div>
       </div>
     </div>
