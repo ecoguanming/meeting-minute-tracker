@@ -4,6 +4,7 @@ import { useState } from "react";
 import SetupStage from "./SetupStage";
 import AttendanceStage from "./AttendanceStage";
 import MattersStage from "./MattersStage";
+import DispatchStage from "./DispatchStage";
 
 const STAGES = [
   { title: "Setup", blurb: "Pick or create the meeting on your Google Calendar." },
@@ -216,19 +217,19 @@ export default function MinutesDesk() {
             />
           )}
 
-          {current > 2 && (
-            <div
-              style={{
-                background: "#fff",
-                border: "1px dashed var(--rule)",
-                borderRadius: 10,
-                padding: 20,
-                fontSize: 13,
-                color: "var(--ink-soft)",
+          {current === 3 && meeting && (
+            <DispatchStage
+              seriesId={meeting.seriesId}
+              meetingId={meeting.meetingId}
+              attendees={meeting.attendees}
+              matters={meeting.matters}
+              onClosed={() => {
+                setMeeting(null);
+                setVenue("");
+                setNextDate("");
+                setCurrent(0);
               }}
-            >
-              This stage isn&apos;t wired up yet — it&apos;s coming in a later step of the build.
-            </div>
+            />
           )}
           </div>
         </div>
