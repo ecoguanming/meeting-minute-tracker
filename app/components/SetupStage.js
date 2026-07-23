@@ -229,14 +229,14 @@ export default function SetupStage({ onResolved }) {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 1, marginBottom: 1 }}>
           {DAY_NAMES.map((d) => (
-            <div key={d} className="mma-mono" style={{ textAlign: "center", fontSize: 10, color: "var(--ink-soft)", padding: "4px 0" }}>
+            <div key={d} className="mma-mono" style={{ textAlign: "center", fontSize: 12, color: "var(--ink-soft)", padding: "6px 0" }}>
               {d}
             </div>
           ))}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 1, background: "var(--rule)", border: "1px solid var(--rule)", borderRadius: 6, overflow: "hidden" }}>
           {cells.map((d, i) => {
-            if (!d) return <div key={i} style={{ background: "var(--paper-dim)", minHeight: 74 }} />;
+            if (!d) return <div key={i} style={{ background: "var(--paper-dim)", minHeight: 130 }} />;
             const ds = dateStr(calYear, calMonth, d);
             const dayEvents = eventsByDay[ds] || [];
             const isToday = ds === today;
@@ -249,16 +249,16 @@ export default function SetupStage({ onResolved }) {
                 }}
                 style={{
                   background: "#fff",
-                  minHeight: 74,
-                  padding: 4,
+                  minHeight: 130,
+                  padding: 8,
                   cursor: "pointer",
                   boxShadow: isToday ? "inset 0 0 0 2px var(--brass)" : "none",
                 }}
               >
-                <div className="mma-mono" style={{ fontSize: 10, color: isToday ? "var(--brass)" : "var(--ink-soft)", marginBottom: 2 }}>
+                <div className="mma-mono" style={{ fontSize: 12, color: isToday ? "var(--brass)" : "var(--ink-soft)", marginBottom: 4 }}>
                   {d}
                 </div>
-                {dayEvents.slice(0, 3).map((e, ei) => (
+                {dayEvents.slice(0, 4).map((e, ei) => (
                   <div
                     key={ei}
                     onClick={(ev) => {
@@ -269,21 +269,21 @@ export default function SetupStage({ onResolved }) {
                     style={{
                       background: "rgba(62,107,92,0.14)",
                       color: "var(--pine)",
-                      fontSize: 10,
-                      padding: "1px 4px",
+                      fontSize: 12,
+                      lineHeight: 1.3,
+                      padding: "3px 6px",
                       borderRadius: 4,
-                      marginBottom: 2,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
+                      marginBottom: 3,
+                      whiteSpace: "normal",
+                      wordBreak: "break-word",
                     }}
                   >
                     {e.subject}
                   </div>
                 ))}
-                {dayEvents.length > 3 && (
-                  <div className="mma-mono" style={{ fontSize: 9, color: "var(--ink-soft)" }}>
-                    +{dayEvents.length - 3} more
+                {dayEvents.length > 4 && (
+                  <div className="mma-mono" style={{ fontSize: 10, color: "var(--ink-soft)" }}>
+                    +{dayEvents.length - 4} more
                   </div>
                 )}
               </div>

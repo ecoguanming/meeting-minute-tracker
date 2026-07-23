@@ -129,7 +129,7 @@ export default function MinutesDesk() {
         </div>
 
         <div style={{ flex: 1, padding: "36px 48px", overflowY: "auto" }}>
-          <div style={{ maxWidth: 760, margin: "0 auto" }}>
+          <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div className="mma-h" style={{ fontSize: 24, fontWeight: 600, marginBottom: 6 }}>
             {STAGES[current].title}
           </div>
