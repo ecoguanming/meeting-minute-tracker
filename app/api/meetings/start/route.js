@@ -49,7 +49,6 @@ export async function POST(request) {
   return Response.json({
     seriesId: series.id,
     seriesTitle: series.title,
-    ccList: series.ccList,
     meetingId: meeting.id,
     matters,
     attendees: meeting.attendees,

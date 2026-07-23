@@ -65,7 +65,6 @@ model Series {
   id        String     @id @default(cuid())
   slug      String     @unique
   title     String
-  ccList    String     @default("")
   ownerId   String
   createdAt DateTime   @default(now())
 

@@ -12,16 +12,14 @@ const STAGES = [
 
 export default function MinutesDesk() {
   const [current, setCurrent] = useState(0);
-  const [meeting, setMeeting] = useState(null); // { seriesId, seriesTitle, meetingId, title, date, venue, ccList, attendees, matters }
+  const [meeting, setMeeting] = useState(null); // { seriesId, seriesTitle, meetingId, title, date, venue, attendees, matters }
   const [nextDate, setNextDate] = useState("");
-  const [ccList, setCcList] = useState("");
   const [venue, setVenue] = useState("");
   const [saving, setSaving] = useState(false);
 
   function handleResolved(payload) {
     setMeeting(payload);
     setVenue(payload.venue || "");
-    setCcList(payload.ccList || "");
   }
 
   async function handleContinue() {
@@ -30,7 +28,7 @@ export default function MinutesDesk() {
       await fetch(`/api/meetings/${meeting.meetingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ venue, nextDate, ccList }),
+        body: JSON.stringify({ venue, nextDate }),
       });
       setCurrent(1);
     } finally {
@@ -175,17 +173,6 @@ export default function MinutesDesk() {
                   type="date"
                   value={nextDate}
                   onChange={(e) => setNextDate(e.target.value)}
-                  style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--rule)", borderRadius: 8, fontSize: 14, marginBottom: 16 }}
-                />
-
-                <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--ink-soft)", marginBottom: 6 }}>
-                  Always CC (comma separated)
-                </label>
-                <input
-                  type="text"
-                  placeholder="gm@company.com, cdo@company.com"
-                  value={ccList}
-                  onChange={(e) => setCcList(e.target.value)}
                   style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--rule)", borderRadius: 8, fontSize: 14 }}
                 />
               </div>
