@@ -204,6 +204,8 @@ export default function MinutesDesk() {
             <MattersStage
               seriesId={meeting.seriesId}
               meetingId={meeting.meetingId}
+              title={meeting.title}
+              date={meeting.date}
               initialMinutes={meeting.professionalMinutes}
               initialMatters={meeting.matters}
               attendees={meeting.attendees}
