@@ -9,7 +9,7 @@ export default async function Home() {
   }
 
   return (
-    <div style={{ maxWidth: 960, margin: "0 auto", padding: "16px 0 0" }}>
+    <div style={{ maxWidth: 1400, margin: "0 auto", padding: "24px 32px 0" }}>
       <div
         style={{
           display: "flex",
@@ -18,7 +18,7 @@ export default async function Home() {
           gap: 12,
           fontSize: 12,
           color: "var(--ink-soft)",
-          padding: "0 4px 8px",
+          padding: "0 4px 12px",
         }}
       >
         <span>{session.user?.email}</span>

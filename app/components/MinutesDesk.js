@@ -39,18 +39,18 @@ export default function MinutesDesk() {
   return (
     <div
       style={{
-        maxWidth: 960,
-        margin: "40px auto",
+        width: "100%",
+        margin: "16px 0 40px",
         background: "var(--paper)",
         borderRadius: 14,
         overflow: "hidden",
         border: "1px solid var(--rule)",
       }}
     >
-      <div style={{ display: "flex", minHeight: 560 }}>
+      <div style={{ display: "flex", minHeight: "calc(100vh - 140px)" }}>
         <div
           style={{
-            width: 190,
+            width: 220,
             background: "var(--paper-dim)",
             borderRight: "1px solid var(--rule)",
             padding: "24px 0",
@@ -128,11 +128,12 @@ export default function MinutesDesk() {
           </div>
         </div>
 
-        <div style={{ flex: 1, padding: "28px 32px", overflowY: "auto" }}>
-          <div className="mma-h" style={{ fontSize: 22, fontWeight: 600, marginBottom: 4 }}>
+        <div style={{ flex: 1, padding: "36px 48px", overflowY: "auto" }}>
+          <div style={{ maxWidth: 760, margin: "0 auto" }}>
+          <div className="mma-h" style={{ fontSize: 24, fontWeight: 600, marginBottom: 6 }}>
             {STAGES[current].title}
           </div>
-          <div style={{ fontSize: 13, color: "var(--ink-soft)", marginBottom: 20 }}>
+          <div style={{ fontSize: 14, color: "var(--ink-soft)", marginBottom: 24 }}>
             {STAGES[current].blurb}
           </div>
 
@@ -200,6 +201,7 @@ export default function MinutesDesk() {
               This stage isn&apos;t wired up yet — it&apos;s coming in a later step of the build.
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>
