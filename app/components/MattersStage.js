@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import MultiSelectAttendees from "./MultiSelectAttendees";
 
 const STATUS_META = {
   grey: { label: "not started", color: "var(--grey)" },
@@ -106,15 +107,21 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
         setMatters((prev) => {
           let running = [...prev];
           parsedMatters.forEach((pm) => {
-            let actionParty = pm.action_party || "";
-            let actionPartyEmail = "";
-            const match = (attendees || []).find(
-              (a) => (a.name || "").toLowerCase() === actionParty.toLowerCase()
-            );
-            if (match) {
-              actionParty = match.name || match.email;
-              actionPartyEmail = match.email;
-            }
+            const rawNames = (pm.action_party || "")
+              .split(/,| and | & /i)
+              .map((n) => n.trim())
+              .filter(Boolean);
+            const resolvedNames = [];
+            const resolvedEmails = [];
+            rawNames.forEach((rawName) => {
+              const match = (attendees || []).find(
+                (a) => (a.name || "").toLowerCase() === rawName.toLowerCase()
+              );
+              resolvedNames.push(match ? match.name || match.email : rawName);
+              if (match) resolvedEmails.push(match.email);
+            });
+            const actionParty = resolvedNames.join(", ");
+            const actionPartyEmail = resolvedEmails.join(", ");
             running = [
               ...running,
               {
@@ -289,22 +296,18 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
                     />
                   </td>
                   <td style={{ padding: "6px 8px" }}>
-                    <select
-                      value={m.actionParty}
-                      onChange={(e) => {
-                        const match = (attendees || []).find((a) => (a.name || a.email) === e.target.value);
-                        updateMatter(i, "actionParty", e.target.value);
-                        updateMatter(i, "actionPartyEmail", match ? match.email : "");
+                    <MultiSelectAttendees
+                      attendees={attendees}
+                      selectedNames={m.actionParty ? m.actionParty.split(", ").filter(Boolean) : []}
+                      onChange={(names) => {
+                        const emails = names.map((name) => {
+                          const match = (attendees || []).find((a) => (a.name || a.email) === name);
+                          return match ? match.email : "";
+                        });
+                        updateMatter(i, "actionParty", names.join(", "));
+                        updateMatter(i, "actionPartyEmail", emails.filter(Boolean).join(", "));
                       }}
-                      style={{ width: "100%", border: "none", fontSize: 12, padding: 4, background: "transparent" }}
-                    >
-                      <option value="">—</option>
-                      {(attendees || []).map((a, ai) => (
-                        <option key={ai} value={a.name || a.email}>
-                          {a.name || a.email}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </td>
                   <td style={{ padding: "6px 8px" }}>
                     <input
