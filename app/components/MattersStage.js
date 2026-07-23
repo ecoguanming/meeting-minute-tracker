@@ -14,13 +14,20 @@ function nextNo(matters) {
   return (max + 1).toFixed(1);
 }
 
+function extractTextFromHtml(html) {
+  const withBreaks = html.replace(/<(br|\/p|\/div|\/li|\/h[1-6]|\/tr)\s*\/?>/gi, "\n");
+  const doc = new DOMParser().parseFromString(withBreaks, "text/html");
+  const text = doc.body ? doc.body.textContent || "" : "";
+  return text.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export default function MattersStage({ seriesId, meetingId, initialMinutes, initialMatters, attendees, onContinue }) {
   const [minutes, setMinutes] = useState(initialMinutes || "");
   const [matters, setMatters] = useState(
     (initialMatters || []).map((m) => ({ ...m, no: m.no || "" }))
   );
   const [saving, setSaving] = useState(false);
-  const [transcriptLabel, setTranscriptLabel] = useState("click to choose a .txt or .docx transcript");
+  const [transcriptLabel, setTranscriptLabel] = useState("click to choose a .txt, .docx, or .html transcript");
   const [transcriptText, setTranscriptText] = useState("");
 
   function updateMatter(i, field, value) {
@@ -44,11 +51,15 @@ export default function MattersStage({ seriesId, meetingId, initialMinutes, init
     setTranscriptLabel(`reading ${file.name}…`);
     try {
       let text;
-      if (file.name.toLowerCase().endsWith(".docx")) {
+      const lowerName = file.name.toLowerCase();
+      if (lowerName.endsWith(".docx")) {
         const mammoth = (await import("mammoth")).default;
         const buf = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer: buf });
         text = result.value;
+      } else if (lowerName.endsWith(".html") || lowerName.endsWith(".htm")) {
+        const raw = await file.text();
+        text = extractTextFromHtml(raw);
       } else {
         text = await file.text();
       }
@@ -112,7 +123,7 @@ export default function MattersStage({ seriesId, meetingId, initialMinutes, init
             marginBottom: 10,
           }}
         >
-          <input id="mma-transcript-file" type="file" accept=".txt,.docx" onChange={handleFileChange} style={{ display: "none" }} />
+          <input id="mma-transcript-file" type="file" accept=".txt,.docx,.html,.htm" onChange={handleFileChange} style={{ display: "none" }} />
           <div className="mma-mono" style={{ fontSize: 12, color: "var(--ink-soft)" }}>{transcriptLabel}</div>
         </label>
         <button
