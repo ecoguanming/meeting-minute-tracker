@@ -21,7 +21,6 @@ model User {
   accounts      Account[]
   sessions      Session[]
   series        Series[]
-  microsoftAccount MicrosoftAccount?
 }
 
 model Account {
@@ -58,19 +57,6 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
-}
-
-model MicrosoftAccount {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  accessToken  String
-  refreshToken String
-  expiresAt    Int
-  msUserId     String   @default("")
-  msEmail      String   @default("")
-  createdAt    DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // ---------- App data ----------
