@@ -82,10 +82,6 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
     }
   }
 
-  function insertTranscriptIntoMinutes() {
-    setMinutes((prev) => (prev ? prev + "\n\n" + transcriptText : transcriptText));
-  }
-
   async function generateMinutes() {
     setGenerating(true);
     setGenerateStatus("drafting minutes…");
@@ -198,22 +194,6 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
           <input id="mma-transcript-file" type="file" accept=".txt,.docx,.pdf" onChange={handleFileChange} style={{ display: "none" }} />
           <div className="mma-mono" style={{ fontSize: 12, color: "var(--ink-soft)" }}>{transcriptLabel}</div>
         </label>
-        <button
-          disabled={!transcriptText}
-          onClick={insertTranscriptIntoMinutes}
-          style={{
-            background: "var(--paper-dim)",
-            color: "var(--ink)",
-            border: "1px solid var(--rule)",
-            padding: "9px 16px",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 500,
-            marginRight: 10,
-          }}
-        >
-          Insert transcript into minutes
-        </button>
         <button
           disabled={!transcriptText || generating}
           onClick={generateMinutes}
