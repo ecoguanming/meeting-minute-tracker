@@ -11,6 +11,9 @@ export async function POST(request, { params }) {
   if (!file || typeof file === "string") {
     return Response.json({ error: "No file provided." }, { status: 400 });
   }
+  if (!file.name.toLowerCase().endsWith(".pdf")) {
+    return Response.json({ error: "Only .pdf files are accepted." }, { status: 400 });
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   await prisma.meeting.update({

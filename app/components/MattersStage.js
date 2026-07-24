@@ -52,6 +52,11 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
   async function handleReviewedFileChange(e) {
     const file = e.target.files[0];
     if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      setReviewedStatus("Only .pdf files are accepted here — export your reviewed .docx to PDF first.");
+      e.target.value = "";
+      return;
+    }
     setReviewedUploading(true);
     setReviewedStatus("Uploading…");
     try {
@@ -328,15 +333,15 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
 
         <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--rule)" }}>
           <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 8 }}>
-            4. review &amp; upload the final .docx (optional)
+            4. upload the checker-finalized .pdf (optional)
           </div>
           <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>
-            Open the downloaded .docx, make any edits in Word, then upload the revised file here. If uploaded, Dispatch will attach this exact file instead of drafting its own.
+            Open the downloaded .docx, make any edits in Word, then export/save it as a PDF and upload that final PDF here. If uploaded, Dispatch will attach this exact PDF instead of drafting its own.
           </div>
           <input
             id="mma-reviewed-file"
             type="file"
-            accept=".docx"
+            accept=".pdf"
             onChange={handleReviewedFileChange}
             style={{ display: "none" }}
           />
@@ -354,7 +359,7 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
                 opacity: reviewedUploading ? 0.5 : 1,
               }}
             >
-              {reviewedUploading ? "working…" : "upload reviewed .docx"}
+              {reviewedUploading ? "working…" : "upload finalized .pdf"}
             </label>
             {reviewedFilename && (
               <button

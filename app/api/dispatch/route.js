@@ -67,8 +67,8 @@ export async function POST(request) {
     try {
       const attachment = meeting.reviewedMinutesFile
         ? {
-            filename: meeting.reviewedMinutesFilename || "minutes.docx",
-            mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            filename: meeting.reviewedMinutesFilename || "minutes.pdf",
+            mimeType: "application/pdf",
             data: meeting.reviewedMinutesFile,
           }
         : undefined;
