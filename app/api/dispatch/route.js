@@ -65,10 +65,19 @@ export async function POST(request) {
     const accessToken = await getValidAccessToken(session.userId);
 
     try {
+      const attachment = meeting.reviewedMinutesFile
+        ? {
+            filename: meeting.reviewedMinutesFilename || "minutes.docx",
+            mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            data: meeting.reviewedMinutesFile,
+          }
+        : undefined;
+
       await sendGmail(accessToken, {
         to: toEmails,
         subject: `Meeting minutes: ${meeting.series.title} (${meeting.date || "undated"})`,
         bodyText: minutesText,
+        attachment,
       });
       emailSent = true;
     } catch (err) {

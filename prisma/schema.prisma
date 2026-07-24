@@ -96,6 +96,8 @@ model Meeting {
   professionalMinutes String   @default("")
   status              String   @default("open") // open | dispatched | closed
   createdAt           DateTime @default(now())
+  reviewedMinutesFile     Bytes?
+  reviewedMinutesFilename String?
 
   series    Series     @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   attendees Attendee[]

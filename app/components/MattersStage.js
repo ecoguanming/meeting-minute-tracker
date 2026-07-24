@@ -45,6 +45,45 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
   const [showLiveCapture, setShowLiveCapture] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("general-mom");
 
+  const [reviewedFilename, setReviewedFilename] = useState("");
+  const [reviewedUploading, setReviewedUploading] = useState(false);
+  const [reviewedStatus, setReviewedStatus] = useState("");
+
+  async function handleReviewedFileChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setReviewedUploading(true);
+    setReviewedStatus("Uploading…");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`/api/meetings/${meetingId}/reviewed-minutes`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "upload failed");
+      setReviewedFilename(data.filename);
+      setReviewedStatus(`Uploaded "${data.filename}" — Dispatch will attach this file instead of drafting its own.`);
+    } catch (err) {
+      setReviewedStatus(`Couldn't upload (${err.message}).`);
+    } finally {
+      setReviewedUploading(false);
+      e.target.value = "";
+    }
+  }
+
+  async function removeReviewedFile() {
+    setReviewedUploading(true);
+    try {
+      await fetch(`/api/meetings/${meetingId}/reviewed-minutes`, { method: "DELETE" });
+      setReviewedFilename("");
+      setReviewedStatus("Removed — Dispatch will go back to using the AI-drafted minutes.");
+    } finally {
+      setReviewedUploading(false);
+    }
+  }
+
   const TEMPLATE_OPTIONS = [
     { value: "general-mom", label: "General Meeting MOM" },
     { value: "ccm-mom", label: "CCM (Consultant Coordination Meeting)" },
@@ -283,6 +322,53 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
           {generateStatus && (
             <div className="mma-mono" style={{ fontSize: 12, color: "var(--pine)", marginTop: 10 }}>
               {generateStatus}
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--rule)" }}>
+          <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 8 }}>
+            4. review &amp; upload the final .docx (optional)
+          </div>
+          <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>
+            Open the downloaded .docx, make any edits in Word, then upload the revised file here. If uploaded, Dispatch will attach this exact file instead of drafting its own.
+          </div>
+          <input
+            id="mma-reviewed-file"
+            type="file"
+            accept=".docx"
+            onChange={handleReviewedFileChange}
+            style={{ display: "none" }}
+          />
+          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <label
+              htmlFor="mma-reviewed-file"
+              className="mma-mono"
+              style={{
+                fontSize: 11,
+                background: "none",
+                border: "1px solid var(--rule)",
+                padding: "5px 10px",
+                borderRadius: 6,
+                cursor: reviewedUploading ? "not-allowed" : "pointer",
+                opacity: reviewedUploading ? 0.5 : 1,
+              }}
+            >
+              {reviewedUploading ? "working…" : "upload reviewed .docx"}
+            </label>
+            {reviewedFilename && (
+              <button
+                disabled={reviewedUploading}
+                onClick={removeReviewedFile}
+                style={{ fontSize: 11, background: "none", border: "1px solid var(--rule)", color: "var(--danger)", padding: "5px 10px", borderRadius: 6, cursor: "pointer" }}
+              >
+                remove
+              </button>
+            )}
+          </div>
+          {reviewedStatus && (
+            <div className="mma-mono" style={{ fontSize: 12, color: "var(--pine)", marginTop: 10 }}>
+              {reviewedStatus}
             </div>
           )}
         </div>
