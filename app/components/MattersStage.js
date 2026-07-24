@@ -476,10 +476,20 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
                     <select
                       value={m.status}
                       onChange={(e) => updateMatter(i, "status", e.target.value)}
-                      style={{ width: "100%", border: "none", fontSize: 12, padding: 4, background: "transparent" }}
+                      style={{
+                        width: "100%",
+                        border: "none",
+                        fontSize: 12,
+                        padding: "5px 8px",
+                        borderRadius: 6,
+                        background: STATUS_META[m.status]?.color || "transparent",
+                        color: "#fff",
+                        fontWeight: 500,
+                        cursor: "pointer",
+                      }}
                     >
                       {Object.keys(STATUS_META).map((k) => (
-                        <option key={k} value={k}>
+                        <option key={k} value={k} style={{ color: "#000", background: "#fff" }}>
                           {STATUS_META[k].label}
                         </option>
                       ))}
