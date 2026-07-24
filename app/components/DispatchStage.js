@@ -62,6 +62,13 @@ export default function DispatchStage({ seriesId, meetingId, seriesTitle, attend
     }
   }
 
+  async function handleDistributeAll() {
+    if (notionSendable.length) {
+      await handleSendNotion();
+    }
+    await handleDispatch();
+  }
+
   async function handleClose() {
     setClosing(true);
     try {
@@ -177,48 +184,9 @@ export default function DispatchStage({ seriesId, meetingId, seriesTitle, attend
         )}
       </div>
 
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid var(--rule)",
-          borderRadius: 10,
-          padding: 16,
-          marginBottom: 20,
-        }}
-      >
-        <button
-          disabled={!notionSendable.length || sendingNotion}
-          onClick={handleSendNotion}
-          style={{
-            background: "var(--brass)",
-            color: "#fff",
-            border: "none",
-            padding: "9px 16px",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 500,
-            opacity: notionSendable.length && !sendingNotion ? 1 : 0.5,
-            cursor: notionSendable.length && !sendingNotion ? "pointer" : "not-allowed",
-          }}
-        >
-          {sendingNotion ? "sending…" : `Send ${notionSendable.length} action item(s) to Notion`}
-        </button>
-
-        {notionError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 10 }}>{notionError}</div>}
-
-        {notionResult && (
-          <div style={{ fontSize: 13, marginTop: 10, color: "var(--pine)" }}>
-            Created {notionResult.created} of {notionResult.total} task(s) in Notion.
-            {notionResult.notes && (
-              <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>{notionResult.notes}</div>
-            )}
-          </div>
-        )}
-      </div>
-
       <button
-        disabled={!emails.length || dispatching}
-        onClick={handleDispatch}
+        disabled={!emails.length || sendingNotion || dispatching}
+        onClick={handleDistributeAll}
         style={{
           background: "var(--pine)",
           color: "#fff",
@@ -227,12 +195,23 @@ export default function DispatchStage({ seriesId, meetingId, seriesTitle, attend
           borderRadius: 8,
           fontSize: 13,
           fontWeight: 500,
-          opacity: emails.length && !dispatching ? 1 : 0.5,
-          cursor: emails.length && !dispatching ? "pointer" : "not-allowed",
+          opacity: emails.length && !sendingNotion && !dispatching ? 1 : 0.5,
+          cursor: emails.length && !sendingNotion && !dispatching ? "pointer" : "not-allowed",
         }}
       >
-        {dispatching ? "sending…" : "Generate, send and remind"}
+        {sendingNotion ? "sending to Notion…" : dispatching ? "sending…" : "Distribute All"}
       </button>
+
+      {notionError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 10 }}>{notionError}</div>}
+
+      {notionResult && (
+        <div style={{ fontSize: 13, marginTop: 10, color: "var(--pine)" }}>
+          Created {notionResult.created} of {notionResult.total} task(s) in Notion.
+          {notionResult.notes && (
+            <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>{notionResult.notes}</div>
+          )}
+        </div>
+      )}
 
       {dispatchError && (
         <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 10 }}>{dispatchError}</div>
