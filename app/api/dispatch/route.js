@@ -4,31 +4,21 @@ import { getValidAccessToken } from "@/lib/googleAuth";
 import { sendGmail } from "@/lib/gmail";
 import { createCalendarEvent } from "@/lib/googleCalendar";
 
-const STATUS_LABEL = { grey: "not started", yellow: "in progress", green: "completed", red: "delayed" };
-
-function buildMinutesText(meeting, matters) {
+function buildMinutesText(meeting, hasAttachment) {
   const lines = [];
-  lines.push(`${meeting.series.title} — ${meeting.date || "undated"}${meeting.venue ? " — " + meeting.venue : ""}`);
+  lines.push("Hi all,");
   lines.push("");
-  lines.push("ATTENDEES");
-  meeting.attendees.forEach((a) => lines.push(`- ${a.name || a.email}${a.attended ? "" : " (absent)"}`));
-  lines.push("");
-  if (meeting.professionalMinutes && meeting.professionalMinutes.trim()) {
-    lines.push(meeting.professionalMinutes.trim());
-    lines.push("");
-  }
-  lines.push("ACTION ITEMS");
-  matters.forEach((m) => {
-    lines.push(
-      `${m.no}. ${m.matter} — action: ${m.actionParty || "unassigned"} — due: ${m.deadline || "n/a"} — status: ${STATUS_LABEL[m.status] || m.status}`
-    );
-  });
+  lines.push(
+    hasAttachment
+      ? `Here's the meeting minutes for ${meeting.series.title} (${meeting.date || "undated"}) — please see the attached PDF.`
+      : `Meeting minutes: ${meeting.series.title} (${meeting.date || "undated"}).`
+  );
   lines.push("");
   if (process.env.NOTION_PUBLIC_URL) {
-    lines.push(`Track and update these action items: ${process.env.NOTION_PUBLIC_URL}`);
+    lines.push(`Action item tracker: ${process.env.NOTION_PUBLIC_URL}`);
     lines.push("");
   }
-  if (meeting.nextDate) lines.push(`NEXT MEETING: ${meeting.nextDate}${meeting.venue ? " at " + meeting.venue : ""}`);
+  if (meeting.nextDate) lines.push(`Next meeting: ${meeting.nextDate}${meeting.venue ? " at " + meeting.venue : ""}`);
   return lines.join("\n");
 }
 
@@ -55,7 +45,7 @@ export async function POST(request) {
   }
 
   const remindable = matters.filter((m) => m.deadline && m.actionPartyEmail && m.status !== "green");
-  const minutesText = buildMinutesText(meeting, matters);
+  const minutesText = buildMinutesText(meeting, Boolean(meeting.reviewedMinutesFile));
 
   let emailSent = false;
   let eventsCreated = 0;
