@@ -186,9 +186,6 @@ export default function DispatchStage({ seriesId, meetingId, seriesTitle, attend
           marginBottom: 20,
         }}
       >
-        <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 10 }}>
-          send action items to Notion
-        </div>
         <button
           disabled={!notionSendable.length || sendingNotion}
           onClick={handleSendNotion}
