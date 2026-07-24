@@ -43,6 +43,41 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
   const [generating, setGenerating] = useState(false);
   const [generateStatus, setGenerateStatus] = useState("");
   const [showLiveCapture, setShowLiveCapture] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState("general-mom");
+  const [docGenerating, setDocGenerating] = useState(false);
+  const [docStatus, setDocStatus] = useState("");
+
+  const MOM_TEMPLATES = [{ value: "general-mom", label: "General Meeting MOM" }];
+
+  async function generateMinutesDoc() {
+    setDocGenerating(true);
+    setDocStatus("Filling Word template…");
+    try {
+      const res = await fetch("/api/generate-minutes-doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template: selectedTemplate, title, date, attendees, transcriptText }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "failed to generate document");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${(title || "minutes").replace(/[^a-z0-9]+/gi, "-")}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setDocStatus("Downloaded — check your Downloads folder.");
+    } catch (err) {
+      setDocStatus(`Couldn't generate document (${err.message}).`);
+    } finally {
+      setDocGenerating(false);
+    }
+  }
 
   function handleLiveTranscript(text) {
     setTranscriptText(text);
@@ -234,6 +269,47 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
             {generateStatus}
           </div>
         )}
+
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--rule)" }}>
+          <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 8 }}>
+            or fill a company MOM template
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <select
+              value={selectedTemplate}
+              onChange={(e) => setSelectedTemplate(e.target.value)}
+              style={{ fontSize: 12, padding: "6px 8px", border: "1px solid var(--rule)", borderRadius: 6, background: "#fff" }}
+            >
+              {MOM_TEMPLATES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <button
+              disabled={!transcriptText || docGenerating}
+              onClick={generateMinutesDoc}
+              style={{
+                background: "var(--ink)",
+                color: "var(--paper)",
+                border: "none",
+                padding: "9px 16px",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 500,
+                opacity: transcriptText && !docGenerating ? 1 : 0.5,
+                cursor: transcriptText && !docGenerating ? "pointer" : "not-allowed",
+              }}
+            >
+              {docGenerating ? "filling template…" : "Download filled Word minutes"}
+            </button>
+          </div>
+          {docStatus && (
+            <div className="mma-mono" style={{ fontSize: 12, color: "var(--pine)", marginTop: 10 }}>
+              {docStatus}
+            </div>
+          )}
+        </div>
       </div>
 
       {showLiveCapture && (
