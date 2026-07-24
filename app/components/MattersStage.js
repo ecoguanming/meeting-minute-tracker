@@ -49,6 +49,39 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
 
   const MOM_TEMPLATES = [{ value: "general-mom", label: "General Meeting MOM" }];
 
+  const [exporting, setExporting] = useState(false);
+  const [exportStatus, setExportStatus] = useState("");
+
+  async function exportMinutes(format) {
+    setExporting(format);
+    setExportStatus("");
+    try {
+      const res = await fetch("/api/export-minutes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ format, title, date, minutesText: minutes }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "failed to export");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${(title || "minutes").replace(/[^a-z0-9]+/gi, "-")}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setExportStatus("Downloaded — check your Downloads folder.");
+    } catch (err) {
+      setExportStatus(`Couldn't export (${err.message}).`);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function generateMinutesDoc() {
     setDocGenerating(true);
     setDocStatus("Filling Word template…");
@@ -323,23 +356,40 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
       <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 6 }}>
         minutes
       </div>
-      <textarea
-        rows={8}
-        value={minutes}
-        onChange={(e) => setMinutes(e.target.value)}
-        placeholder="Write the minutes here, or paste in the transcript above."
-        style={{
-          width: "100%",
-          padding: 12,
-          border: "1px solid var(--rule)",
-          borderRadius: 8,
-          background: "#fff",
-          fontSize: 13,
-          marginBottom: 20,
-          resize: "vertical",
-          fontFamily: "Inter, sans-serif",
-        }}
-      />
+      <div style={{ background: "#fff", border: "1px solid var(--rule)", borderRadius: 10, padding: 16, marginBottom: 20 }}>
+        {minutes ? (
+          <>
+            <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 12 }}>
+              Minutes drafted — download as:
+            </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <button
+                disabled={exporting}
+                onClick={() => exportMinutes("docx")}
+                style={{ background: "var(--ink)", color: "var(--paper)", border: "none", padding: "9px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: exporting ? "not-allowed" : "pointer", opacity: exporting ? 0.5 : 1 }}
+              >
+                {exporting === "docx" ? "preparing…" : "Download as .docx"}
+              </button>
+              <button
+                disabled={exporting}
+                onClick={() => exportMinutes("pdf")}
+                style={{ background: "var(--ink)", color: "var(--paper)", border: "none", padding: "9px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: exporting ? "not-allowed" : "pointer", opacity: exporting ? 0.5 : 1 }}
+              >
+                {exporting === "pdf" ? "preparing…" : "Download as .pdf"}
+              </button>
+            </div>
+            {exportStatus && (
+              <div className="mma-mono" style={{ fontSize: 12, color: "var(--pine)", marginTop: 10 }}>
+                {exportStatus}
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+            No minutes drafted yet — click "Generate minutes & action items" above first.
+          </div>
+        )}
+      </div>
 
       <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 6 }}>
         action items — no., matter, action party, deadline, status
