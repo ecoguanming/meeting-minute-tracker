@@ -201,32 +201,34 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
           <input id="mma-transcript-file" type="file" accept=".txt,.docx,.pdf" onChange={handleFileChange} style={{ display: "none" }} />
           <div className="mma-mono" style={{ fontSize: 12, color: "var(--ink-soft)" }}>{transcriptLabel}</div>
         </label>
-        {!showLiveCapture && (
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <button
-            onClick={() => setShowLiveCapture(true)}
-            className="mma-mono"
-            style={{ display: "block", marginBottom: 20, fontSize: 11, background: "none", border: "1px solid var(--rule)", padding: "5px 10px", borderRadius: 6, cursor: "pointer" }}
+            disabled={!transcriptText || generating}
+            onClick={generateMinutes}
+            style={{
+              background: "var(--brass)",
+              color: "#fff",
+              border: "none",
+              padding: "9px 16px",
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 500,
+              opacity: transcriptText && !generating ? 1 : 0.5,
+              cursor: transcriptText && !generating ? "pointer" : "not-allowed",
+            }}
           >
-            or record live meeting instead →
+            {generating ? "generating…" : "Generate minutes & action items"}
           </button>
-        )}
-        <button
-          disabled={!transcriptText || generating}
-          onClick={generateMinutes}
-          style={{
-            background: "var(--brass)",
-            color: "#fff",
-            border: "none",
-            padding: "9px 16px",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 500,
-            opacity: transcriptText && !generating ? 1 : 0.5,
-            cursor: transcriptText && !generating ? "pointer" : "not-allowed",
-          }}
-        >
-          {generating ? "generating…" : "Generate minutes & action items"}
-        </button>
+          {!showLiveCapture && (
+            <button
+              onClick={() => setShowLiveCapture(true)}
+              className="mma-mono"
+              style={{ fontSize: 11, background: "none", border: "1px solid var(--rule)", padding: "5px 10px", borderRadius: 6, cursor: "pointer" }}
+            >
+              or record live meeting instead →
+            </button>
+          )}
+        </div>
         {generateStatus && (
           <div className="mma-mono" style={{ fontSize: 12, color: "var(--pine)", marginTop: 10 }}>
             {generateStatus}
