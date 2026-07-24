@@ -483,10 +483,6 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
         </div>
 
         <div style={{ flex: 1, minWidth: 220 }}>
-          <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 6 }}>
-            enroll faces (saved for future meetings)
-          </div>
-
           <input
             type="file"
             accept="image/*"
@@ -508,11 +504,8 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
               marginBottom: 6,
             }}
           >
-            {bulkBusy ? "enrolling from photos…" : "📁 bulk-enroll from photos on this device"}
+            {bulkBusy ? "enrolling…" : "📁 bulk-enroll from photos"}
           </button>
-          <div style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 10 }}>
-            Name each photo file exactly like the attendee (e.g. "Tanguanming.jpg"), select them all at once, and they'll be matched and enrolled automatically — no need to face the camera one by one. Only a numeric face description is saved to your account (not the photo itself), so recognition works again next meeting without re-enrolling. Use "forget" next to a name to delete their saved face.
-          </div>
 
           {(attendees || []).filter((a) => a.name).length === 0 && (
             <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>
