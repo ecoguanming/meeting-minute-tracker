@@ -45,7 +45,12 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
   const [showLiveCapture, setShowLiveCapture] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("general-mom");
 
-  const TEMPLATE_OPTIONS = [{ value: "general-mom", label: "General Meeting MOM" }];
+  const TEMPLATE_OPTIONS = [
+    { value: "general-mom", label: "General Meeting MOM" },
+    { value: "ccm-mom", label: "CCM (Consultant Coordination Meeting)" },
+    { value: "ground-branding-mom", label: "Ground Branding Meeting" },
+    { value: "site-meeting-mom", label: "Site Progress Meeting" },
+  ];
 
   function triggerDownload(blob, filename) {
     const url = URL.createObjectURL(blob);
