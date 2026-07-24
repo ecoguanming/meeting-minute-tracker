@@ -266,8 +266,8 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
           marginBottom: 20,
         }}
       >
-        <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 10 }}>
-          1. upload or record the meeting transcript
+        <div className="mma-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", marginBottom: 10 }}>
+          1. Upload or Record the Meeting Transcript
         </div>
         <label
           htmlFor="mma-transcript-file"
@@ -295,8 +295,8 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
         )}
 
         <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--rule)" }}>
-          <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 8 }}>
-            2. choose a minutes template
+          <div className="mma-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", marginBottom: 8 }}>
+            2. Choose a Minutes Template
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <select
@@ -331,8 +331,8 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
         </div>
 
         <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--rule)" }}>
-          <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 8 }}>
-            3. generate meeting minutes
+          <div className="mma-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", marginBottom: 8 }}>
+            3. Generate Meeting Minutes
           </div>
           <button
             disabled={!transcriptText || generating}
@@ -359,8 +359,8 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
         </div>
 
         <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--rule)" }}>
-          <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 8 }}>
-            4. upload the checker-finalized .pdf (optional)
+          <div className="mma-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", marginBottom: 8 }}>
+            4. Upload the Checker-Finalized PDF (Optional)
           </div>
           <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>
             Open the downloaded .docx, make any edits in Word, then export/save it as a PDF and upload that final PDF here. If uploaded, Dispatch will attach this exact PDF instead of drafting its own.
