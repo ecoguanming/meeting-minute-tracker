@@ -18,6 +18,7 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
   const recordingRef = useRef(false);
   const detectTimerRef = useRef(null);
   const recognizerRef = useRef(null);
+  const bulkInputRef = useRef(null);
 
   const [status, setStatus] = useState("Loading face recognition models…");
   const [modelsReady, setModelsReady] = useState(false);
@@ -26,6 +27,7 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
   const [recording, setRecording] = useState(false);
   const [lines, setLines] = useState([]);
   const [speechSupported, setSpeechSupported] = useState(true);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +113,64 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
     rebuildMatcher();
     setEnrolled((prev) => ({ ...prev, [name]: true }));
     setStatus(`Enrolled ${name}. You can re-enroll anyone at any time if the match seems off.`);
+  }
+
+  function normalizeName(s) {
+    return (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  }
+
+  async function handleBulkPhotos(e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = ""; // allow re-selecting the same files later
+    const faceapi = faceapiRef.current;
+    if (!files.length || !faceapi) return;
+
+    setBulkBusy(true);
+    setStatus(`Reading ${files.length} photo(s)…`);
+
+    const names = (attendees || []).map((a) => a.name).filter(Boolean);
+    const matched = [];
+    const skipped = [];
+
+    for (const file of files) {
+      const baseName = file.name.replace(/\.[^/.]+$/, "");
+      const attendeeName = names.find((n) => normalizeName(n) === normalizeName(baseName));
+      if (!attendeeName) {
+        skipped.push(`${file.name} (no matching attendee name)`);
+        continue;
+      }
+      try {
+        const img = await faceapi.bufferToImage(file);
+        const detection = await faceapi
+          .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+        if (!detection) {
+          skipped.push(`${file.name} (no face found in photo)`);
+          continue;
+        }
+        descriptorsRef.current = descriptorsRef.current.filter((d) => d.label !== attendeeName);
+        descriptorsRef.current.push({ label: attendeeName, descriptors: [detection.descriptor] });
+        matched.push(attendeeName);
+      } catch (err) {
+        skipped.push(`${file.name} (couldn't read photo)`);
+      }
+    }
+
+    rebuildMatcher();
+    if (matched.length) {
+      setEnrolled((prev) => {
+        const next = { ...prev };
+        matched.forEach((n) => (next[n] = true));
+        return next;
+      });
+    }
+
+    const parts = [];
+    if (matched.length) parts.push(`Enrolled from photos: ${matched.join(", ")}.`);
+    if (skipped.length) parts.push(`Skipped: ${skipped.join("; ")}.`);
+    setStatus(parts.join(" ") || "No photos matched an attendee name.");
+    setBulkBusy(false);
   }
 
   function addLine(name, text) {
@@ -266,6 +326,34 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
           <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 6 }}>
             enroll faces (this session only)
           </div>
+
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            ref={bulkInputRef}
+            onChange={handleBulkPhotos}
+            style={{ display: "none" }}
+          />
+          <button
+            disabled={!modelsReady || bulkBusy}
+            onClick={() => bulkInputRef.current?.click()}
+            style={{
+              fontSize: 11,
+              background: "none",
+              border: "1px solid var(--rule)",
+              padding: "5px 10px",
+              borderRadius: 6,
+              cursor: modelsReady && !bulkBusy ? "pointer" : "not-allowed",
+              marginBottom: 6,
+            }}
+          >
+            {bulkBusy ? "enrolling from photos…" : "📁 bulk-enroll from photos on this device"}
+          </button>
+          <div style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 10 }}>
+            Name each photo file exactly like the attendee (e.g. "Tanguanming.jpg"), select them all at once, and they'll be matched and enrolled automatically — no need to face the camera one by one. Photos are only read in your browser to compute a face match; they are never uploaded or saved anywhere.
+          </div>
+
           {(attendees || []).filter((a) => a.name).length === 0 && (
             <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>
               No named attendees yet — add names in the Attendance stage first.
