@@ -21,6 +21,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   series        Series[]
+  enrolledFaces EnrolledFace[]
 }
 
 model Account {
@@ -60,6 +61,19 @@ model VerificationToken {
 }
 
 // ---------- App data ----------
+
+model EnrolledFace {
+  id         String   @id @default(cuid())
+  ownerId    String
+  name       String
+  descriptor Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, name])
+}
 
 model Series {
   id        String     @id @default(cuid())

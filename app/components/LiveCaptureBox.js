@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// Session-only: enrolled faces and everything captured here live in memory
-// for this recording only. Nothing is written to disk, Drive, or the
-// database — closing this panel or leaving the page discards it, and only
-// the resulting transcript text gets handed up to the parent.
+// Enrolled faces are saved permanently (as a numeric descriptor, not a
+// photo) to the signed-in user's account via /api/enrolled-faces, so
+// attendees don't need to be re-enrolled every meeting. The live
+// transcript itself is still session-only — only the resulting text
+// gets handed up to the parent when recording stops.
 export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClose }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -41,6 +42,27 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
         await faceapi.nets.faceRecognitionNet.loadFromUri("/models");
         if (cancelled) return;
         setModelsReady(true);
+
+        try {
+          const res = await fetch("/api/enrolled-faces");
+          if (res.ok) {
+            const { faces } = await res.json();
+            descriptorsRef.current = (faces || []).map((f) => ({
+              label: f.name,
+              descriptors: [new Float32Array(f.descriptor)],
+            }));
+            rebuildMatcher();
+            const attendeeNames = (attendees || []).map((a) => a.name);
+            const already = {};
+            (faces || []).forEach((f) => {
+              if (attendeeNames.includes(f.name)) already[f.name] = true;
+            });
+            if (!cancelled) setEnrolled(already);
+          }
+        } catch (err) {
+          /* saved faces are a convenience — proceed without them if this fails */
+        }
+
         setStatus("Requesting camera and microphone…");
 
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -112,7 +134,36 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
     descriptorsRef.current.push({ label: name, descriptors: [detection.descriptor] });
     rebuildMatcher();
     setEnrolled((prev) => ({ ...prev, [name]: true }));
-    setStatus(`Enrolled ${name}. You can re-enroll anyone at any time if the match seems off.`);
+    setStatus(`Enrolled ${name}. Saving…`);
+    await saveFace(name, detection.descriptor);
+    setStatus(`Enrolled ${name} and saved for future meetings. You can re-enroll anyone at any time if the match seems off.`);
+  }
+
+  async function saveFace(name, descriptor) {
+    try {
+      await fetch("/api/enrolled-faces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, descriptor: Array.from(descriptor) }),
+      });
+    } catch (err) {
+      /* enrollment still works for this session even if saving permanently fails */
+    }
+  }
+
+  async function forgetFace(name) {
+    descriptorsRef.current = descriptorsRef.current.filter((d) => d.label !== name);
+    rebuildMatcher();
+    setEnrolled((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+    try {
+      await fetch(`/api/enrolled-faces/${encodeURIComponent(name)}`, { method: "DELETE" });
+    } catch (err) {
+      /* local state is already updated; the saved copy can be cleared next time */
+    }
   }
 
   function normalizeName(s) {
@@ -152,6 +203,7 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
         descriptorsRef.current = descriptorsRef.current.filter((d) => d.label !== attendeeName);
         descriptorsRef.current.push({ label: attendeeName, descriptors: [detection.descriptor] });
         matched.push(attendeeName);
+        await saveFace(attendeeName, detection.descriptor);
       } catch (err) {
         skipped.push(`${file.name} (couldn't read photo)`);
       }
@@ -167,7 +219,7 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
     }
 
     const parts = [];
-    if (matched.length) parts.push(`Enrolled from photos: ${matched.join(", ")}.`);
+    if (matched.length) parts.push(`Enrolled from photos and saved for future meetings: ${matched.join(", ")}.`);
     if (skipped.length) parts.push(`Skipped: ${skipped.join("; ")}.`);
     setStatus(parts.join(" ") || "No photos matched an attendee name.");
     setBulkBusy(false);
@@ -324,7 +376,7 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
 
         <div style={{ flex: 1, minWidth: 220 }}>
           <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 6 }}>
-            enroll faces (this session only)
+            enroll faces (saved for future meetings)
           </div>
 
           <input
@@ -351,7 +403,7 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
             {bulkBusy ? "enrolling from photos…" : "📁 bulk-enroll from photos on this device"}
           </button>
           <div style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 10 }}>
-            Name each photo file exactly like the attendee (e.g. "Tanguanming.jpg"), select them all at once, and they'll be matched and enrolled automatically — no need to face the camera one by one. Photos are only read in your browser to compute a face match; they are never uploaded or saved anywhere.
+            Name each photo file exactly like the attendee (e.g. "Tanguanming.jpg"), select them all at once, and they'll be matched and enrolled automatically — no need to face the camera one by one. Only a numeric face description is saved to your account (not the photo itself), so recognition works again next meeting without re-enrolling. Use "forget" next to a name to delete their saved face.
           </div>
 
           {(attendees || []).filter((a) => a.name).length === 0 && (
@@ -388,6 +440,23 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
                 >
                   {enrolled[a.name] ? "re-enroll" : "enroll face"}
                 </button>
+                {enrolled[a.name] && (
+                  <button
+                    onClick={() => forgetFace(a.name)}
+                    title="Delete this saved face permanently"
+                    style={{
+                      fontSize: 11,
+                      background: "none",
+                      border: "1px solid var(--rule)",
+                      color: "var(--danger)",
+                      padding: "4px 8px",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                    }}
+                  >
+                    forget
+                  </button>
+                )}
               </div>
             ))}
 
