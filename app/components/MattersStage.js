@@ -89,6 +89,14 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
     }
   }
 
+  const [previousMinutesFilename, setPreviousMinutesFilename] = useState("");
+
+  function handlePreviousMinutesChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setPreviousMinutesFilename(file.name);
+  }
+
   const TEMPLATE_OPTIONS = [
     { value: "general-mom", label: "General Meeting MOM" },
     { value: "ccm-mom", label: "CCM (Consultant Coordination Meeting)" },
@@ -290,17 +298,36 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
           <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 8 }}>
             2. choose a minutes template
           </div>
-          <select
-            value={selectedTemplate}
-            onChange={(e) => setSelectedTemplate(e.target.value)}
-            style={{ fontSize: 12, padding: "6px 8px", border: "1px solid var(--rule)", borderRadius: 6, background: "#fff" }}
-          >
-            {TEMPLATE_OPTIONS.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <select
+              value={selectedTemplate}
+              onChange={(e) => setSelectedTemplate(e.target.value)}
+              style={{ fontSize: 12, padding: "6px 8px", border: "1px solid var(--rule)", borderRadius: 6, background: "#fff" }}
+            >
+              {TEMPLATE_OPTIONS.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+
+            <input
+              id="mma-previous-minutes-file"
+              type="file"
+              onChange={handlePreviousMinutesChange}
+              style={{ display: "none" }}
+            />
+            <label
+              htmlFor="mma-previous-minutes-file"
+              className="mma-mono"
+              style={{ fontSize: 11, background: "none", border: "1px solid var(--rule)", padding: "5px 10px", borderRadius: 6, cursor: "pointer" }}
+            >
+              upload previous meeting minutes
+            </label>
+            {previousMinutesFilename && (
+              <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>{previousMinutesFilename}</span>
+            )}
+          </div>
         </div>
 
         <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--rule)" }}>
