@@ -45,13 +45,7 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
   const [showLiveCapture, setShowLiveCapture] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("general-mom");
 
-  const TEMPLATE_OPTIONS = [
-    { value: "plain", label: "Plain minutes (no template)" },
-    { value: "general-mom", label: "General Meeting MOM" },
-  ];
-
-  const [exporting, setExporting] = useState(false);
-  const [exportStatus, setExportStatus] = useState("");
+  const TEMPLATE_OPTIONS = [{ value: "general-mom", label: "General Meeting MOM" }];
 
   function triggerDownload(blob, filename) {
     const url = URL.createObjectURL(blob);
@@ -62,29 +56,6 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-  }
-
-  async function exportMinutes(format) {
-    setExporting(format);
-    setExportStatus("");
-    try {
-      const res = await fetch("/api/export-minutes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ format, title, date, minutesText: minutes }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "failed to export");
-      }
-      const blob = await res.blob();
-      triggerDownload(blob, `${(title || "minutes").replace(/[^a-z0-9]+/gi, "-")}.${format}`);
-      setExportStatus("Downloaded — check your Downloads folder.");
-    } catch (err) {
-      setExportStatus(`Couldn't export (${err.message}).`);
-    } finally {
-      setExporting(false);
-    }
   }
 
   function handleLiveTranscript(text) {
@@ -185,23 +156,19 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
         });
       }
 
-      if (selectedTemplate === "general-mom") {
-        setGenerateStatus(`Added ${parsedMatters.length} action item(s) — filling Word template…`);
-        const docRes = await fetch("/api/generate-minutes-doc", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ template: selectedTemplate, title, date, attendees, transcriptText }),
-        });
-        if (!docRes.ok) {
-          const errData = await docRes.json().catch(() => ({}));
-          throw new Error(errData.error || "failed to fill template");
-        }
-        const blob = await docRes.blob();
-        triggerDownload(blob, `${(title || "minutes").replace(/[^a-z0-9]+/gi, "-")}.docx`);
-        setGenerateStatus(`Done — added ${parsedMatters.length} action item(s) and downloaded the filled Word template.`);
-      } else {
-        setGenerateStatus(`Done — added minutes and ${parsedMatters.length} action item(s). Choose a download format below.`);
+      setGenerateStatus(`Added ${parsedMatters.length} action item(s) — filling Word template…`);
+      const docRes = await fetch("/api/generate-minutes-doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template: selectedTemplate, title, date, attendees, transcriptText }),
+      });
+      if (!docRes.ok) {
+        const errData = await docRes.json().catch(() => ({}));
+        throw new Error(errData.error || "failed to fill template");
       }
+      const blob = await docRes.blob();
+      triggerDownload(blob, `${(title || "minutes").replace(/[^a-z0-9]+/gi, "-")}.docx`);
+      setGenerateStatus(`Done — added ${parsedMatters.length} action item(s) and downloaded the filled Word template.`);
     } catch (err) {
       setGenerateStatus(`Couldn't generate from that transcript (${err.message}).`);
     } finally {
@@ -306,42 +273,11 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
               cursor: transcriptText && !generating ? "pointer" : "not-allowed",
             }}
           >
-            {generating
-              ? "generating…"
-              : selectedTemplate === "general-mom"
-              ? "Generate meeting minutes (.docx)"
-              : "Generate meeting minutes"}
+            {generating ? "generating…" : "Generate meeting minutes (.docx)"}
           </button>
           {generateStatus && (
             <div className="mma-mono" style={{ fontSize: 12, color: "var(--pine)", marginTop: 10 }}>
               {generateStatus}
-            </div>
-          )}
-
-          {selectedTemplate === "plain" && minutes && (
-            <div style={{ marginTop: 14 }}>
-              <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>Download as:</div>
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <button
-                  disabled={exporting}
-                  onClick={() => exportMinutes("docx")}
-                  style={{ background: "var(--ink)", color: "var(--paper)", border: "none", padding: "9px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: exporting ? "not-allowed" : "pointer", opacity: exporting ? 0.5 : 1 }}
-                >
-                  {exporting === "docx" ? "preparing…" : "Download as .docx"}
-                </button>
-                <button
-                  disabled={exporting}
-                  onClick={() => exportMinutes("pdf")}
-                  style={{ background: "var(--ink)", color: "var(--paper)", border: "none", padding: "9px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: exporting ? "not-allowed" : "pointer", opacity: exporting ? 0.5 : 1 }}
-                >
-                  {exporting === "pdf" ? "preparing…" : "Download as .pdf"}
-                </button>
-              </div>
-              {exportStatus && (
-                <div className="mma-mono" style={{ fontSize: 12, color: "var(--pine)", marginTop: 10 }}>
-                  {exportStatus}
-                </div>
-              )}
             </div>
           )}
         </div>
