@@ -2,6 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 
+// Minimum recent mouth-movement score (mouth-gap change per tick, relative
+// to face height) needed before we trust that a specific person — among
+// several visible at once — is the one actually talking. Tune this up if
+// people are misidentified while just sitting still; tune it down if real
+// speakers aren't being picked up.
+const MOUTH_ACTIVITY_THRESHOLD = 0.012;
+
+function computeMouthOpenness(landmarks, box) {
+  const mouth = landmarks.getMouth(); // 20 points: outer lip (0-11), inner lip (12-19)
+  const innerTop = mouth[14]; // inner lip, top-center
+  const innerBottom = mouth[18]; // inner lip, bottom-center
+  const gap = Math.hypot(innerTop.x - innerBottom.x, innerTop.y - innerBottom.y);
+  return gap / (box.height || 1);
+}
+
 // Enrolled faces are saved permanently (as a numeric descriptor, not a
 // photo) to the signed-in user's account via /api/enrolled-faces, so
 // attendees don't need to be re-enrolled every meeting. The live
@@ -20,6 +35,7 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
   const detectTimerRef = useRef(null);
   const recognizerRef = useRef(null);
   const bulkInputRef = useRef(null);
+  const activityRef = useRef({}); // label -> { last: number, score: number }
 
   const [status, setStatus] = useState("Loading face recognition models…");
   const [modelsReady, setModelsReady] = useState(false);
@@ -235,16 +251,17 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
     if (!cameraReady || !modelsReady) return;
     linesRef.current = [];
     setLines([]);
+    activityRef.current = {};
     recordingRef.current = true;
     setRecording(true);
 
     const faceapi = faceapiRef.current;
     detectTimerRef.current = setInterval(async () => {
       if (!videoRef.current || !videoRef.current.videoWidth) return;
-      const detection = await faceapi
-        .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+      const detections = await faceapi
+        .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions())
         .withFaceLandmarks()
-        .withFaceDescriptor();
+        .withFaceDescriptors();
 
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext("2d");
@@ -254,32 +271,58 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
 
-      if (!detection) {
+      if (!detections.length) {
         currentSpeakerRef.current = "Unknown";
         return;
       }
 
-      let label = "Unknown";
-      if (matcherRef.current) {
-        const match = matcherRef.current.findBestMatch(detection.descriptor);
-        if (match.label !== "unknown") label = match.label;
+      // Label each detected face and update its rolling mouth-activity score.
+      const present = detections.map((det) => {
+        let label = "Unknown";
+        if (matcherRef.current) {
+          const match = matcherRef.current.findBestMatch(det.descriptor);
+          if (match.label !== "unknown") label = match.label;
+        }
+        const openness = computeMouthOpenness(det.landmarks, det.detection.box);
+        const prev = activityRef.current[label] || { last: openness, score: 0 };
+        const delta = Math.abs(openness - prev.last);
+        const score = prev.score * 0.7 + delta;
+        activityRef.current[label] = { last: openness, score };
+        return { label, score, box: det.detection.box };
+      });
+
+      // Pick the current speaker: if only one recognized face is visible,
+      // trust it outright; if several are visible, prefer whoever's mouth
+      // has moved the most recently (a simple stand-in for real speaker
+      // detection, since a single mic can't localize whose voice is whose).
+      const recognized = present.filter((p) => p.label !== "Unknown");
+      let speaker = "Unknown";
+      if (recognized.length === 1) {
+        speaker = recognized[0].label;
+      } else if (recognized.length > 1) {
+        const top = [...recognized].sort((a, b) => b.score - a.score)[0];
+        if (top.score >= MOUTH_ACTIVITY_THRESHOLD) speaker = top.label;
       }
-      currentSpeakerRef.current = label;
+      currentSpeakerRef.current = speaker;
 
       if (canvas && ctx) {
-        const resized = faceapi.resizeResults(detection, {
+        const resized = faceapi.resizeResults(detections, {
           width: canvas.width,
           height: canvas.height,
         });
-        const box = resized.detection.box;
-        ctx.strokeStyle = label !== "Unknown" ? "#2f8f5b" : "#c0392b";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(box.x, box.y, box.width, box.height);
-        ctx.fillStyle = ctx.strokeStyle;
-        ctx.font = "13px sans-serif";
-        ctx.fillText(label, box.x, Math.max(12, box.y - 6));
+        resized.forEach((det, i) => {
+          const { label } = present[i];
+          const isSpeaker = label === speaker && label !== "Unknown";
+          const box = det.detection.box;
+          ctx.strokeStyle = label === "Unknown" ? "#c0392b" : isSpeaker ? "#2f8f5b" : "#8a8a8a";
+          ctx.lineWidth = isSpeaker ? 3 : 1.5;
+          ctx.strokeRect(box.x, box.y, box.width, box.height);
+          ctx.fillStyle = ctx.strokeStyle;
+          ctx.font = "13px sans-serif";
+          ctx.fillText(label + (isSpeaker ? " 🗣" : ""), box.x, Math.max(12, box.y - 6));
+        });
       }
-    }, 600);
+    }, 400);
 
     if (speechSupported) {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
