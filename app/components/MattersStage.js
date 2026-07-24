@@ -201,6 +201,15 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
           <input id="mma-transcript-file" type="file" accept=".txt,.docx,.pdf" onChange={handleFileChange} style={{ display: "none" }} />
           <div className="mma-mono" style={{ fontSize: 12, color: "var(--ink-soft)" }}>{transcriptLabel}</div>
         </label>
+        {!showLiveCapture && (
+          <button
+            onClick={() => setShowLiveCapture(true)}
+            className="mma-mono"
+            style={{ display: "block", marginBottom: 20, fontSize: 11, background: "none", border: "1px solid var(--rule)", padding: "5px 10px", borderRadius: 6, cursor: "pointer" }}
+          >
+            or record live meeting instead →
+          </button>
+        )}
         <button
           disabled={!transcriptText || generating}
           onClick={generateMinutes}
@@ -222,15 +231,6 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
           <div className="mma-mono" style={{ fontSize: 12, color: "var(--pine)", marginTop: 10 }}>
             {generateStatus}
           </div>
-        )}
-        {!showLiveCapture && (
-          <button
-            onClick={() => setShowLiveCapture(true)}
-            className="mma-mono"
-            style={{ marginTop: 10, fontSize: 11, background: "none", border: "1px solid var(--rule)", padding: "5px 10px", borderRadius: 6, cursor: "pointer" }}
-          >
-            or record live meeting instead →
-          </button>
         )}
       </div>
 
