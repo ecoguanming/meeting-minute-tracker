@@ -44,13 +44,25 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
   const [generateStatus, setGenerateStatus] = useState("");
   const [showLiveCapture, setShowLiveCapture] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("general-mom");
-  const [docGenerating, setDocGenerating] = useState(false);
-  const [docStatus, setDocStatus] = useState("");
 
-  const MOM_TEMPLATES = [{ value: "general-mom", label: "General Meeting MOM" }];
+  const TEMPLATE_OPTIONS = [
+    { value: "plain", label: "Plain minutes (no template)" },
+    { value: "general-mom", label: "General Meeting MOM" },
+  ];
 
   const [exporting, setExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState("");
+
+  function triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
 
   async function exportMinutes(format) {
     setExporting(format);
@@ -66,49 +78,12 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
         throw new Error(data.error || "failed to export");
       }
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${(title || "minutes").replace(/[^a-z0-9]+/gi, "-")}.${format}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      triggerDownload(blob, `${(title || "minutes").replace(/[^a-z0-9]+/gi, "-")}.${format}`);
       setExportStatus("Downloaded — check your Downloads folder.");
     } catch (err) {
       setExportStatus(`Couldn't export (${err.message}).`);
     } finally {
       setExporting(false);
-    }
-  }
-
-  async function generateMinutesDoc() {
-    setDocGenerating(true);
-    setDocStatus("Filling Word template…");
-    try {
-      const res = await fetch("/api/generate-minutes-doc", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ template: selectedTemplate, title, date, attendees, transcriptText }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "failed to generate document");
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${(title || "minutes").replace(/[^a-z0-9]+/gi, "-")}.docx`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      setDocStatus("Downloaded — check your Downloads folder.");
-    } catch (err) {
-      setDocStatus(`Couldn't generate document (${err.message}).`);
-    } finally {
-      setDocGenerating(false);
     }
   }
 
@@ -210,7 +185,23 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
         });
       }
 
-      setGenerateStatus(`done — added minutes and ${parsedMatters.length} action item(s).`);
+      if (selectedTemplate === "general-mom") {
+        setGenerateStatus(`Added ${parsedMatters.length} action item(s) — filling Word template…`);
+        const docRes = await fetch("/api/generate-minutes-doc", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ template: selectedTemplate, title, date, attendees, transcriptText }),
+        });
+        if (!docRes.ok) {
+          const errData = await docRes.json().catch(() => ({}));
+          throw new Error(errData.error || "failed to fill template");
+        }
+        const blob = await docRes.blob();
+        triggerDownload(blob, `${(title || "minutes").replace(/[^a-z0-9]+/gi, "-")}.docx`);
+        setGenerateStatus(`Done — added ${parsedMatters.length} action item(s) and downloaded the filled Word template.`);
+      } else {
+        setGenerateStatus(`Done — added minutes and ${parsedMatters.length} action item(s). Choose a download format below.`);
+      }
     } catch (err) {
       setGenerateStatus(`Couldn't generate from that transcript (${err.message}).`);
     } finally {
@@ -252,7 +243,7 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
         }}
       >
         <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 10 }}>
-          generate from transcript
+          1. upload or record the meeting transcript
         </div>
         <label
           htmlFor="mma-transcript-file"
@@ -269,7 +260,37 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
           <input id="mma-transcript-file" type="file" accept=".txt,.docx,.pdf" onChange={handleFileChange} style={{ display: "none" }} />
           <div className="mma-mono" style={{ fontSize: 12, color: "var(--ink-soft)" }}>{transcriptLabel}</div>
         </label>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        {!showLiveCapture && (
+          <button
+            onClick={() => setShowLiveCapture(true)}
+            className="mma-mono"
+            style={{ fontSize: 11, background: "none", border: "1px solid var(--rule)", padding: "5px 10px", borderRadius: 6, cursor: "pointer" }}
+          >
+            or record live meeting instead →
+          </button>
+        )}
+
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--rule)" }}>
+          <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 8 }}>
+            2. choose a minutes template
+          </div>
+          <select
+            value={selectedTemplate}
+            onChange={(e) => setSelectedTemplate(e.target.value)}
+            style={{ fontSize: 12, padding: "6px 8px", border: "1px solid var(--rule)", borderRadius: 6, background: "#fff" }}
+          >
+            {TEMPLATE_OPTIONS.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--rule)" }}>
+          <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 8 }}>
+            3. generate meeting minutes
+          </div>
           <button
             disabled={!transcriptText || generating}
             onClick={generateMinutes}
@@ -285,61 +306,42 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
               cursor: transcriptText && !generating ? "pointer" : "not-allowed",
             }}
           >
-            {generating ? "generating…" : "Generate minutes & action items"}
+            {generating
+              ? "generating…"
+              : selectedTemplate === "general-mom"
+              ? "Generate meeting minutes (.docx)"
+              : "Generate meeting minutes"}
           </button>
-          {!showLiveCapture && (
-            <button
-              onClick={() => setShowLiveCapture(true)}
-              className="mma-mono"
-              style={{ fontSize: 11, background: "none", border: "1px solid var(--rule)", padding: "5px 10px", borderRadius: 6, cursor: "pointer" }}
-            >
-              or record live meeting instead →
-            </button>
-          )}
-        </div>
-        {generateStatus && (
-          <div className="mma-mono" style={{ fontSize: 12, color: "var(--pine)", marginTop: 10 }}>
-            {generateStatus}
-          </div>
-        )}
-
-        <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--rule)" }}>
-          <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 8 }}>
-            or fill a company MOM template
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <select
-              value={selectedTemplate}
-              onChange={(e) => setSelectedTemplate(e.target.value)}
-              style={{ fontSize: 12, padding: "6px 8px", border: "1px solid var(--rule)", borderRadius: 6, background: "#fff" }}
-            >
-              {MOM_TEMPLATES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-            <button
-              disabled={!transcriptText || docGenerating}
-              onClick={generateMinutesDoc}
-              style={{
-                background: "var(--ink)",
-                color: "var(--paper)",
-                border: "none",
-                padding: "9px 16px",
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 500,
-                opacity: transcriptText && !docGenerating ? 1 : 0.5,
-                cursor: transcriptText && !docGenerating ? "pointer" : "not-allowed",
-              }}
-            >
-              {docGenerating ? "filling template…" : "Download filled Word minutes"}
-            </button>
-          </div>
-          {docStatus && (
+          {generateStatus && (
             <div className="mma-mono" style={{ fontSize: 12, color: "var(--pine)", marginTop: 10 }}>
-              {docStatus}
+              {generateStatus}
+            </div>
+          )}
+
+          {selectedTemplate === "plain" && minutes && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 10 }}>Download as:</div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <button
+                  disabled={exporting}
+                  onClick={() => exportMinutes("docx")}
+                  style={{ background: "var(--ink)", color: "var(--paper)", border: "none", padding: "9px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: exporting ? "not-allowed" : "pointer", opacity: exporting ? 0.5 : 1 }}
+                >
+                  {exporting === "docx" ? "preparing…" : "Download as .docx"}
+                </button>
+                <button
+                  disabled={exporting}
+                  onClick={() => exportMinutes("pdf")}
+                  style={{ background: "var(--ink)", color: "var(--paper)", border: "none", padding: "9px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: exporting ? "not-allowed" : "pointer", opacity: exporting ? 0.5 : 1 }}
+                >
+                  {exporting === "pdf" ? "preparing…" : "Download as .pdf"}
+                </button>
+              </div>
+              {exportStatus && (
+                <div className="mma-mono" style={{ fontSize: 12, color: "var(--pine)", marginTop: 10 }}>
+                  {exportStatus}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -352,44 +354,6 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
           onClose={() => setShowLiveCapture(false)}
         />
       )}
-
-      <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 6 }}>
-        minutes
-      </div>
-      <div style={{ background: "#fff", border: "1px solid var(--rule)", borderRadius: 10, padding: 16, marginBottom: 20 }}>
-        {minutes ? (
-          <>
-            <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 12 }}>
-              Minutes drafted — download as:
-            </div>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <button
-                disabled={exporting}
-                onClick={() => exportMinutes("docx")}
-                style={{ background: "var(--ink)", color: "var(--paper)", border: "none", padding: "9px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: exporting ? "not-allowed" : "pointer", opacity: exporting ? 0.5 : 1 }}
-              >
-                {exporting === "docx" ? "preparing…" : "Download as .docx"}
-              </button>
-              <button
-                disabled={exporting}
-                onClick={() => exportMinutes("pdf")}
-                style={{ background: "var(--ink)", color: "var(--paper)", border: "none", padding: "9px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: exporting ? "not-allowed" : "pointer", opacity: exporting ? 0.5 : 1 }}
-              >
-                {exporting === "pdf" ? "preparing…" : "Download as .pdf"}
-              </button>
-            </div>
-            {exportStatus && (
-              <div className="mma-mono" style={{ fontSize: 12, color: "var(--pine)", marginTop: 10 }}>
-                {exportStatus}
-              </div>
-            )}
-          </>
-        ) : (
-          <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
-            No minutes drafted yet — click "Generate minutes & action items" above first.
-          </div>
-        )}
-      </div>
 
       <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 6 }}>
         action items — no., matter, action party, deadline, status
