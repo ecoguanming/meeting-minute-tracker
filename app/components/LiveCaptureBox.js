@@ -45,6 +45,9 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
   const [lines, setLines] = useState([]);
   const [speechSupported, setSpeechSupported] = useState(true);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [cameras, setCameras] = useState([]); // [{ deviceId, label }]
+  const [selectedCameraId, setSelectedCameraId] = useState("");
+  const [switchingCamera, setSwitchingCamera] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,8 +96,22 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
         if (videoRef.current) videoRef.current.srcObject = stream;
         setCameraReady(true);
         setStatus("Camera ready. Enroll each attendee's face below, then start recording.");
+
+        const currentId = stream.getVideoTracks()[0]?.getSettings().deviceId || "";
+        if (!cancelled) setSelectedCameraId(currentId);
+        await refreshCameraList();
       } catch (err) {
         setStatus(`Could not start: ${err.message}`);
+      }
+    }
+
+    async function refreshCameraList() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        if (cancelled) return;
+        setCameras(devices.filter((d) => d.kind === "videoinput"));
+      } catch (err) {
+        /* camera list is a convenience — ignore if it fails */
       }
     }
 
@@ -102,12 +119,36 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
     if (!SR) setSpeechSupported(false);
 
     init();
+    navigator.mediaDevices?.addEventListener?.("devicechange", refreshCameraList);
     return () => {
       cancelled = true;
+      navigator.mediaDevices?.removeEventListener?.("devicechange", refreshCameraList);
       stopEverything();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function switchCamera(deviceId) {
+    if (!deviceId || deviceId === selectedCameraId) return;
+    setSwitchingCamera(true);
+    setStatus("Switching camera…");
+    try {
+      const oldStream = streamRef.current;
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: deviceId } },
+        audio: true,
+      });
+      if (oldStream) oldStream.getTracks().forEach((t) => t.stop());
+      streamRef.current = newStream;
+      if (videoRef.current) videoRef.current.srcObject = newStream;
+      setSelectedCameraId(deviceId);
+      setStatus("Camera switched. Ready to enroll faces and start recording.");
+    } catch (err) {
+      setStatus(`Could not switch camera: ${err.message}`);
+    } finally {
+      setSwitchingCamera(false);
+    }
+  }
 
   function stopEverything() {
     if (detectTimerRef.current) clearInterval(detectTimerRef.current);
@@ -412,9 +453,33 @@ export default function LiveCaptureBox({ attendees, onTranscriptCaptured, onClos
       </div>
 
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ position: "relative", width: 320, flexShrink: 0, background: "#000", borderRadius: 8, overflow: "hidden" }}>
-          <video ref={videoRef} autoPlay muted playsInline style={{ width: "100%", display: "block" }} />
-          <canvas ref={canvasRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
+        <div style={{ width: 320, flexShrink: 0 }}>
+          {cameras.length > 0 && (
+            <select
+              value={selectedCameraId}
+              disabled={switchingCamera || recording}
+              onChange={(e) => switchCamera(e.target.value)}
+              style={{
+                width: "100%",
+                fontSize: 12,
+                padding: "5px 6px",
+                marginBottom: 6,
+                border: "1px solid var(--rule)",
+                borderRadius: 6,
+                background: "#fff",
+              }}
+            >
+              {cameras.map((c, i) => (
+                <option key={c.deviceId} value={c.deviceId}>
+                  {c.label || `Camera ${i + 1}`}
+                </option>
+              ))}
+            </select>
+          )}
+          <div style={{ position: "relative", width: "100%", background: "#000", borderRadius: 8, overflow: "hidden" }}>
+            <video ref={videoRef} autoPlay muted playsInline style={{ width: "100%", display: "block" }} />
+            <canvas ref={canvasRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
+          </div>
         </div>
 
         <div style={{ flex: 1, minWidth: 220 }}>
