@@ -414,8 +414,8 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
         />
       )}
 
-      <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 6 }}>
-        action items — no., matter, action party, deadline, status
+      <div className="mma-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", marginBottom: 6 }}>
+        Action Items
       </div>
       <div style={{ background: "#fff", border: "1px solid var(--rule)", borderRadius: 10, overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
