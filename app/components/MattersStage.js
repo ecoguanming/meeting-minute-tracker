@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import MultiSelectAttendees from "./MultiSelectAttendees";
+import LiveCaptureBox from "./LiveCaptureBox";
 
 const STATUS_META = {
   grey: { label: "not started", color: "var(--grey)" },
@@ -41,6 +42,12 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
   const [transcriptText, setTranscriptText] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generateStatus, setGenerateStatus] = useState("");
+  const [showLiveCapture, setShowLiveCapture] = useState(false);
+
+  function handleLiveTranscript(text) {
+    setTranscriptText(text);
+    setTranscriptLabel(`Live recording — ${text.length} characters captured`);
+  }
 
   function updateMatter(i, field, value) {
     setMatters((prev) => prev.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)));
@@ -216,7 +223,24 @@ export default function MattersStage({ seriesId, meetingId, title, date, initial
             {generateStatus}
           </div>
         )}
+        {!showLiveCapture && (
+          <button
+            onClick={() => setShowLiveCapture(true)}
+            className="mma-mono"
+            style={{ marginTop: 10, fontSize: 11, background: "none", border: "1px solid var(--rule)", padding: "5px 10px", borderRadius: 6, cursor: "pointer" }}
+          >
+            or record live meeting instead →
+          </button>
+        )}
       </div>
+
+      {showLiveCapture && (
+        <LiveCaptureBox
+          attendees={attendees}
+          onTranscriptCaptured={handleLiveTranscript}
+          onClose={() => setShowLiveCapture(false)}
+        />
+      )}
 
       <div className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 6 }}>
         minutes
