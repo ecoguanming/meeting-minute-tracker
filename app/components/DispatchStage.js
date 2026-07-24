@@ -130,6 +130,53 @@ export default function DispatchStage({ seriesId, meetingId, seriesTitle, attend
         ))}
       </div>
 
+      <div className="mma-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", marginBottom: 8 }}>
+        Action Items
+      </div>
+      <div style={{ background: "#fff", border: "1px solid var(--rule)", borderRadius: 10, overflow: "hidden", marginBottom: 20 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr className="mma-mono" style={{ fontSize: 11, color: "var(--ink-soft)" }}>
+              <th style={{ textAlign: "left", padding: "8px 8px", borderBottom: "1px solid var(--rule)", width: 50 }}>no.</th>
+              <th style={{ textAlign: "left", padding: "8px 8px", borderBottom: "1px solid var(--rule)" }}>matter</th>
+              <th style={{ textAlign: "left", padding: "8px 8px", borderBottom: "1px solid var(--rule)", width: 160 }}>action party</th>
+              <th style={{ textAlign: "left", padding: "8px 8px", borderBottom: "1px solid var(--rule)", width: 130 }}>deadline</th>
+              <th style={{ textAlign: "left", padding: "8px 8px", borderBottom: "1px solid var(--rule)", width: 130 }}>status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(matters || []).map((m, i) => (
+              <tr key={i}>
+                <td style={{ padding: "8px 8px" }}>{m.no}</td>
+                <td style={{ padding: "8px 8px" }}>{m.matter}</td>
+                <td style={{ padding: "8px 8px" }}>{m.actionParty}</td>
+                <td style={{ padding: "8px 8px" }}>{m.deadline || "—"}</td>
+                <td style={{ padding: "8px 8px" }}>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      padding: "4px 10px",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: "#fff",
+                      background: STATUS_META[m.status]?.color || "var(--grey)",
+                    }}
+                  >
+                    {STATUS_META[m.status]?.label || m.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {(!matters || matters.length === 0) && (
+          <div className="mma-mono" style={{ fontSize: 12, color: "var(--ink-soft)", padding: 14 }}>
+            no matters yet
+          </div>
+        )}
+      </div>
+
       <div
         style={{
           background: "#fff",
